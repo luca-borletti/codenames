@@ -23,37 +23,14 @@ Iterate through all nonempty subsets, SUBSET, of OUR_WORDS:
 Return the subset with the smallest distance in BEST_SUBSETS
 """
 
+import pprint
 import numpy as np
 import heapq
+from preprocess import load_embeddings, PICKLE_PATH
 
-WORDS_TO_EMBEDDINGS = {
-    "apple": np.array([1, 0, 0, 0, 0]),
-    "banana": np.array([0, 1, 0, 0, 0]),
-    "cherry": np.array([0, 0, 1, 0, 0]),
-    "date": np.array([0, 0, 0, 1, 0]),
-    "elderberry": np.array([0, 0, 0, 0, 1]),
-    "fig": np.array([1, 1, 0, 0, 0]),
-    "grape": np.array([0, 1, 1, 0, 0]),
-    "honeydew": np.array([0, 0, 1, 1, 0]),
-    "kiwi": np.array([0, 0, 0, 1, 1]),
-    "lemon": np.array([1, 1, 1, 0, 0]),
-    "mango": np.array([0, 1, 1, 1, 0]),
-    "nectarine": np.array([0, 0, 1, 1, 1]),
-    "orange": np.array([1, 0, 0, 1, 0]),
-    "pear": np.array([0, 1, 0, 0, 1]),
-    "quince": np.array([1, 0, 1, 0, 0]),
-    "raspberry": np.array([0, 0, 1, 0, 1]),
-    "strawberry": np.array([1, 0, 0, 1, 1]),
-    "tangerine": np.array([0, 1, 0, 1, 1]),
-    "ugli": np.array([1, 1, 1, 1, 0]),
-    "vanilla": np.array([0, 1, 1, 1, 1]),
-    "watermelon": np.array([1, 0, 1, 1, 1]),
-    "xigua": np.array([1, 1, 0, 1, 1]),
-    "yuzu": np.array([1, 1, 1, 0, 1]),
-    "zucchini": np.array([1, 1, 1, 1, 1])
-}
+WORDS_TO_EMBEDDINGS = load_embeddings(PICKLE_PATH)
 
-ALL_WORDS = ["apple", "banana", "cherry", "date", "elderberry", "fig", "grape", "honeydew", "kiwi", "lemon", "mango", "nectarine", "orange", "pear", "quince", "raspberry", "strawberry", "tangerine", "ugli", "vanilla", "watermelon", "xigua", "yuzu", "zucchini"]
+ALL_WORDS = list(WORDS_TO_EMBEDDINGS.keys())
 
 BOARD_SIZE = 12
 OUR_SIZE = 6
@@ -106,7 +83,7 @@ def cosine_similarity(x, y):
 def similarity(x, y):
     return cosine_similarity(x, y)
 
-def guess(all_words, board_words, our_words, their_words):
+def guess_over_all_subsets(words_to_embeddings, all_words, board_words, our_words, their_words):
     """
     Guesses the best word subsets based on their similarity scores.
 
@@ -122,20 +99,46 @@ def guess(all_words, board_words, our_words, their_words):
     """
     best_subsets = []
     n = 5
+    num_subsets = 0
     heapq.heapify(best_subsets)
-    for i in range(1, len(our_words) + 1):
+    for i in range(2, len(our_words) + 1):
         for subset in subsets(our_words, i):
             for word in all_words:
                 if word not in board_words:
-                    their_best_sim = max([similarity(WORDS_TO_EMBEDDINGS[word], WORDS_TO_EMBEDDINGS[their_word]) for their_word in their_words])
-                    our_worst_sim = min([similarity(WORDS_TO_EMBEDDINGS[word], WORDS_TO_EMBEDDINGS[our_word]) for our_word in subset])
+                    their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
+                    our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
                     if their_best_sim < our_worst_sim:
                         heapq.heappush(best_subsets, (our_worst_sim, (subset, word)))
                         if len(best_subsets) > n:
                             heapq.heappop(best_subsets)
+            num_subsets += 1
+            if num_subsets % 10 == 0:
+                print(f"Processed {num_subsets} subsets")
     return best_subsets
 
-def start_game(all_words):
+def guess_over_each_subset(words_to_embeddings, all_words, board_words, our_words, their_words):
+    best_subsets_per_group = []
+    n = 5
+    num_subsets = 0
+    for i in range(2, len(our_words) + 1):
+        best_subsets_for_group = []
+        heapq.heapify(best_subsets_for_group)
+        for subset in subsets(our_words, i):
+            for word in all_words:
+                if word not in board_words:
+                    their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
+                    our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
+                    if their_best_sim < our_worst_sim:
+                        heapq.heappush(best_subsets_for_group, (our_worst_sim, (subset, word)))
+                        if len(best_subsets_for_group) > n:
+                            heapq.heappop(best_subsets_for_group)
+            num_subsets += 1
+            if num_subsets % 10 == 0:
+                print(f"Processed {num_subsets} subsets")
+        best_subsets_per_group.append(best_subsets_for_group)
+    return best_subsets_per_group
+
+def start_game(words_to_embeddings, all_words):
     board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
     our_words = np.random.choice(board_words, OUR_SIZE, replace=False)
     their_words = [word for word in board_words if word not in our_words]
@@ -144,10 +147,14 @@ def start_game(all_words):
     print(f"Our words: {our_words}")
     print(f"Their words: {their_words}")
     
-    return guess(list(all_words), list(board_words), list(our_words), list(their_words))
+    return guess_over_each_subset(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
+    # return guess_over_all_subsets(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
 
 if __name__ == "__main__":
-    print(start_game(ALL_WORDS))
+    print(start_game(WORDS_TO_EMBEDDINGS, ALL_WORDS))
+    # pprint.pprint(WORDS_TO_EMBEDDINGS)
+    # pprint.pprint(ALL_WORDS)
     # print(all_subsets(ALL_WORDS))
     # print(len(ALL_WORDS))
     pass
+

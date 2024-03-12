@@ -4,6 +4,8 @@ import numpy as np
 import pickle
 import pprint
 
+PICKLE_PATH = "all_words1.pkl"
+
 client = OpenAI(
     # This is the default and can be omitted
     api_key='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',
@@ -39,7 +41,11 @@ def embed_words(words, pickle_path=False):
             pickle.dump(embeddings, f)
 
     return embeddings
-    
+
+def load_embeddings(pickle_path):
+    with open(pickle_path, "rb") as f:
+        embeddings = pickle.load(f)
+    return embeddings
 
 def check(pickle_path):
     with open(pickle_path, "rb") as f:
