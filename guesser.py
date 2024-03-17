@@ -29,9 +29,22 @@ def gpt_4_guess_from_hint(prompt):
         messages=[
             {"role": "system", "content": prompt},
         ],
+        max_tokens=20,
+    )
+    response_text = response.choices[0].message.content.lower()
+    # print(response_text)
+    return response_text
+
+def gpt_3turbo_guess_from_hint(prompt):
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo-0125",
+        messages=[
+            {"role": "system", "content": prompt},
+        ],
         max_tokens=100,
     )
     response_text = response.choices[0].message.content.lower()
+    # print(response_text)
     return response_text
     
 def gpt_3_guess_from_hint(prompt):
@@ -44,6 +57,7 @@ def gpt_3_guess_from_hint(prompt):
         temperature=0,
     )
     response_text = response.choices[0].text.strip().lower()
+    # print(response_text)
     return response_text
 
 def guess_from_hint(board_words, hint, x):
@@ -52,7 +66,9 @@ def guess_from_hint(board_words, hint, x):
     # prompt = f"Given the words {', '.join(board_words)} on the Codenames board and the hint '{hint}', " \
     #          f"list {x} words from the board that are most likely to be related to the hint:\n"
 
-    response_text = gpt_3_guess_from_hint(prompt)
+    # response_text = gpt_3turbo_guess_from_hint(prompt)
+    # response_text = gpt_3_guess_from_hint(prompt)
+    response_text = gpt_4_guess_from_hint(prompt)
     
     filtered_guesses = [word for word in board_words if word in response_text][:x]
     return filtered_guesses

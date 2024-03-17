@@ -24,17 +24,32 @@ Return the subset with the smallest distance in BEST_SUBSETS
 """
 
 import pprint
+import time
 import numpy as np
 import heapq
 from preprocess import load_all_embeddings
 from guesser import guess_from_hint
 
+
 WORDS_TO_EMBEDDINGS = load_all_embeddings()
 
 ALL_WORDS = list(WORDS_TO_EMBEDDINGS.keys())
 
-BOARD_SIZE = 25
-OUR_SIZE = 9
+print(len(ALL_WORDS))
+
+CODENAMES_WORDS_FILE_PATH = "./data/words/codenames_words.txt"
+
+def load_codenames_words():
+    with open(CODENAMES_WORDS_FILE_PATH, "r") as f:
+        words = f.read().lower().splitlines()
+    return words
+
+CODENAMES_WORDS = load_codenames_words()
+
+BOARD_SIZE = 16
+OUR_SIZE = 8
+# BOARD_SIZE = 25
+# OUR_SIZE = 9
 
 DEBUG = False
 
@@ -140,6 +155,30 @@ def get_hints_over_each_subset(words_to_embeddings, all_words, board_words, our_
         best_subsets_per_group.append(best_subsets_for_group)
     return best_subsets_per_group
 
+def get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_words, their_words, size = 2):
+    best_hint = None
+    best_sim = 0
+    num_subsets = 0
+    all_subets = subsets(our_words, size)
+    
+    for subset in all_subets:
+        # random_words = np.random.choice(all_words, 1000, replace=False)
+        # for word in random_words:
+        for word in all_words:
+            if word not in board_words:
+                their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
+                our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
+                if their_best_sim < our_worst_sim:
+                    if our_worst_sim > best_sim:
+                        best_sim = our_worst_sim
+                        best_hint = (subset, word)
+        num_subsets += 1
+        if num_subsets % 10 == 0:
+            # if DEBUG:
+            print(f"Processed {num_subsets} subsets")
+    return best_hint
+
+
 def start_game(words_to_embeddings, all_words):
     board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
     our_words = np.random.choice(board_words, OUR_SIZE, replace=False)
@@ -158,48 +197,67 @@ def initialize_game(all_words):
     their_words = [word for word in board_words if word not in our_words]
     return list(board_words), list(our_words), list(their_words)
 
-def evaluate_with_guesser_bot(all_words, words_to_embeddings):
+def evaluate_spymaster_with_guesser_bot():
+    number_of_games = 4
+    # subsets_to_evaluate = [2,3]
+    subset_size_to_evaluate = 2
+    game_words = CODENAMES_WORDS
+    dictionary_words = ALL_WORDS
+    words_to_embeddings = WORDS_TO_EMBEDDINGS
+    
     """ 
-    Create N games and evaluate the performance of the spymaster bot on each subset size group.
+    Each game, we will initialize the game, get the best hints for each subset, and GPTGuesser guess the words.
+    If GPTGuesser guessed the words correctly, we will add the number of correct guesses to the total correct guesses.
+    We will also add the number of guesses to the total guesses.
     """
-    N = 4
-    BIGGEST_SUBSET = 2
     
-    """ probably want to see all board_words, our_words,  """
+    total_duration = 0
+    num_games = 0
     
-    results = [
-        {
-            
-        }
-    ]
-    correct_guesses = 0
-    total_guesses = 0
-    for i in range(N):
-        board_words, our_words, their_words = initialize_game(all_words)
-        best_hint_for_each_subset = get_hints_over_each_subset(words_to_embeddings, all_words, board_words, our_words, their_words, top_n=1, biggest_subset=BIGGEST_SUBSET)
-        best_hint_for_each_subset = [x[0][1] for x in best_hint_for_each_subset]
-        best_hint_for_each_subset = [(x[1], len(x[0]), x[0]) for x in best_hint_for_each_subset]
-        print(f"Game {i + 1}: {best_hint_for_each_subset}")
-        for hint, subset_size, actual_words in best_hint_for_each_subset:
-            guessed_words = guess_from_hint(board_words, hint, subset_size)
-            results.append((subset_size, actual_words, guessed_words))
-            total_guesses += subset_size
-            correct_guesses += len([x for x in guessed_words if x in actual_words])
-            print(f"Guessed words: {guessed_words} for hint {hint} and actual words {actual_words}")
+    for i in range(number_of_games):
+        num_games += 1
+        start = time.time()
+        board_words, our_words, their_words = initialize_game(game_words)
+        (best_hint_subset, best_hint_word) = get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
+        print(f"Hint: {best_hint_word}")
+        print(f"Our words: {our_words}")
+        print(f"Their words: {their_words}")
+        print(f"Intended Guesses: {best_hint_subset}")
+        print(f"Bot guesses: {guessed_words}")
         print("\n\n")
+        duration = time.time() - start
+        print(f"Duration: {duration}")
+        total_duration += duration
+        
+        # board_words, our_words, their_words = initialize_game(game_words)
+        # best_hint_for_each_subset = get_hints_over_each_subset(words_to_embeddings, dictionary_words, board_words, our_words, their_words, top_n=1, biggest_subset=BIGGEST_SUBSET)
+        # best_hint_for_each_subset = [x[0][1] for x in best_hint_for_each_subset]
+        # best_hint_for_each_subset = [(x[1], len(x[0]), x[0]) for x in best_hint_for_each_subset]
+        # print(f"Game {i + 1}: {best_hint_for_each_subset}")
+        # for hint, subset_size, actual_words in best_hint_for_each_subset:
+        #     guessed_words = guess_from_hint(board_words, hint, subset_size)
+            # results.append((subset_size, actual_words, guessed_words))
+            # total_guesses += subset_size
+            # correct_guesses += len([x for x in guessed_words if x in actual_words])
+            # print(f"Guessed words: {guessed_words} for hint {hint} and actual words {actual_words}")
+        # print("\n\n")
     
-    return correct_guesses / total_guesses
+    print(f"Average duration: {total_duration / num_games}")
+    # return correct_guesses / total_guesses
     
     
 
         
 if __name__ == "__main__":
-    print(evaluate_with_guesser_bot(ALL_WORDS, WORDS_TO_EMBEDDINGS))
+    # print(load_codenames_words())
+    # print(evaluate_with_guesser_bot(ALL_WORDS, WORDS_TO_EMBEDDINGS))
     # print(start_game(WORDS_TO_EMBEDDINGS, ALL_WORDS))
     # pprint.pprint(WORDS_TO_EMBEDDINGS)
     # pprint.pprint(ALL_WORDS)
     # print(all_subsets(ALL_WORDS))
     # print(len(ALL_WORDS))
+    evaluate_spymaster_with_guesser_bot()
     pass
 
 
