@@ -1,160 +1,185 @@
-"""
-Codemaster AI
- 
-ALL_WORDS - Assume we have some storage of all of the words.
-# THRESHOLD - Assume we have a threshold for the worst cosine similarity between a 
-# board word and the potential spy word.
+""" 
+Guesser bot for evaluating spymaster hints and generating guesses.
 
-DISTANCE(x, y) - Assume we have a function for cosine similarity between two embeddings.
-SUBSETS(S) - Assume we have a function that returns all of the nonempty subsets of a set.
-
-Initialize best subsets heap, BEST_SUBSETS, with size n
-    Has elements (distance, subset)
-Pull 24 random words, BOARD_WORDS, from ALL_WORDS
-Put 12 words on the our team OUR_WORDS, and the rest are THEIR_WORDS
-Iterate through all nonempty subsets, SUBSET, of OUR_WORDS:
-    Iterate through all words, WORD, in ALL_WORDS:
-        If WORD is not in BOARD_WORDS:
-            BAD_DIST = minimum distance between the word and all words in THEIR_WORDS
-            GOOD_DIST = maximum distance between the word and all words in SUBSET
-            if BAD_DIST > GOOD_DIST and GOOD_DIST < BEST_DIST:
-                Add (GOOD_DIST, SUBSET) to BEST_SUBSETS
-                If the size of BEST_SUBSETS is greater than n, remove the smallest element
-Return the subset with the smallest distance in BEST_SUBSETS
+Uses OpenAI's chat completion API to generate guesses.
 """
 
-import pprint
+import time
+from openai import OpenAI
+import dotenv
+import os
+import csv
+import re
+import ast
 import numpy as np
-import heapq
-from preprocess import load_embeddings, PICKLE_PATH
+from collections import defaultdict
+dotenv.load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-WORDS_TO_EMBEDDINGS = load_embeddings(PICKLE_PATH)
+DEBUG = False
+GAMES_FILE_PATH = "./data/games/hints_and_guesses.csv"
 
-ALL_WORDS = list(WORDS_TO_EMBEDDINGS.keys())
+client = OpenAI(
+    api_key=OPENAI_API_KEY,
+)
 
-BOARD_SIZE = 12
-OUR_SIZE = 6
-
-def all_subsets(s):
-    """ return all subsets of s """
-    if len(s) == 0:
-        return [[]]
-    all_subsets_without_first = all_subsets(s[1:])
-    all_subsets_with_first = [x + [s[0]] for x in all_subsets_without_first]
-    return all_subsets_without_first + all_subsets_with_first
-
-def all_nonempty_subsets(s):
-    return [x for x in all_subsets(s) if len(x) > 0]
-
-def subsets(s, n):
-    """
-    Generate all subsets of size n from a given set s.
-
-    Parameters:
-    s (list): The input set.
-    n (int): The size of subsets to generate.
-
-    Returns:
-    list: A list of all subsets of size n.
-    """
-    if n == 0:
-        return []
-    if n == 1:
-        return [[x] for x in s]
-    if len(s) == n:
-        return [s]
-    all_subsets_without_first = subsets(s[1:], n)
-    all_subsets_with_first = [x + [s[0]] for x in subsets(s[1:], n - 1)]
-    return all_subsets_without_first + all_subsets_with_first
-
-def cosine_similarity(x, y):
-    """
-    Calculates the cosine similarity between two vectors.
-
-    Parameters:
-    x (array-like): The first vector.
-    y (array-like): The second vector.
-
-    Returns:
-    float: The cosine similarity between x and y.
-    """
-    return np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
-
-def similarity(x, y):
-    return cosine_similarity(x, y)
-
-def guess_over_all_subsets(words_to_embeddings, all_words, board_words, our_words, their_words):
-    """
-    Guesses the best word subsets based on their similarity scores.
-
-    Args:
-        all_words (list): A list of all possible words.
-        board_words (list): A list of words on the game board.
-        our_words (list): A list of words that belong to our team.
-        their_words (list): A list of words that belong to the opposing team.
-
-    Returns:
-        list: A list of the best word subsets, the word to guess, and the 
-        worst similarity score between the word to guess and our words.
-    """
-    best_subsets = []
-    n = 5
-    num_subsets = 0
-    heapq.heapify(best_subsets)
-    for i in range(2, len(our_words) + 1):
-        for subset in subsets(our_words, i):
-            for word in all_words:
-                if word not in board_words:
-                    their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
-                    our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
-                    if their_best_sim < our_worst_sim:
-                        heapq.heappush(best_subsets, (our_worst_sim, (subset, word)))
-                        if len(best_subsets) > n:
-                            heapq.heappop(best_subsets)
-            num_subsets += 1
-            if num_subsets % 10 == 0:
-                print(f"Processed {num_subsets} subsets")
-    return best_subsets
-
-def guess_over_each_subset(words_to_embeddings, all_words, board_words, our_words, their_words):
-    best_subsets_per_group = []
-    n = 5
-    num_subsets = 0
-    for i in range(2, len(our_words) + 1):
-        best_subsets_for_group = []
-        heapq.heapify(best_subsets_for_group)
-        for subset in subsets(our_words, i):
-            for word in all_words:
-                if word not in board_words:
-                    their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
-                    our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
-                    if their_best_sim < our_worst_sim:
-                        heapq.heappush(best_subsets_for_group, (our_worst_sim, (subset, word)))
-                        if len(best_subsets_for_group) > n:
-                            heapq.heappop(best_subsets_for_group)
-            num_subsets += 1
-            if num_subsets % 10 == 0:
-                print(f"Processed {num_subsets} subsets")
-        best_subsets_per_group.append(best_subsets_for_group)
-    return best_subsets_per_group
-
-def start_game(words_to_embeddings, all_words):
-    board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
-    our_words = np.random.choice(board_words, OUR_SIZE, replace=False)
-    their_words = [word for word in board_words if word not in our_words]
+def gpt_4_guess_from_hint(prompt):
+    response = client.chat.completions.create(
+        model="gpt-4-turbo-preview",
+        messages=[
+            {"role": "system", "content": prompt},
+        ],
+        max_tokens=100,
+    )
+    response_text = response.choices[0].message.content.lower()
+    return response_text
     
-    print(f"Board words: {board_words}")
-    print(f"Our words: {our_words}")
-    print(f"Their words: {their_words}")
+def gpt_3_guess_from_hint(prompt):
+    response = client.completions.create(
+        model="gpt-3.5-turbo-instruct",
+        prompt=prompt,
+        max_tokens=100,
+        n=1,
+        stop=None,
+        temperature=0,
+    )
+    response_text = response.choices[0].text.strip().lower()
+    return response_text
+
+def guess_from_hint(board_words, hint, x):
+    prompt = f"Given the list of words {', '.join(board_words)}, " \
+             f"list {x} words from the list of words that are most related to the hint '{hint}':\n"
+    # prompt = f"Given the words {', '.join(board_words)} on the Codenames board and the hint '{hint}', " \
+    #          f"list {x} words from the board that are most likely to be related to the hint:\n"
+
+    response_text = gpt_3_guess_from_hint(prompt)
     
-    return guess_over_each_subset(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
-    # return guess_over_all_subsets(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
+    filtered_guesses = [word for word in board_words if word in response_text][:x]
+    return filtered_guesses
+
+def evaluate_guesser_bot():
+    """ 
+    Pull human games from the database and evaluate the performance of the guesser bot.
+    
+    Returns for each subset size group:
+        bot_human_fit
+        human_performance
+        bot_performance
+        
+    Also return the number of incongruent guesses (when the number of guessed words is not equal to the number of words in the hint)
+        
+    For each row consisting of guess(es), a clue, and the board state (array for green, black, and tan words)
+        Parse the row
+        Concatenate all words and randomize the order
+        Calculate clue number from # of guesses
+        Generate guesses from the hint
+        Compare guesses to the board state
+        Calculate human-score and green-score
+    
+    Only evaluate hint groups of 2 and 3
+    """
+    
+    groups = [2, 3]
+    tracking = {}
+    for group in groups:
+        tracking[group] = {
+            "total_guesses": 0,
+            "bot_human_guesses": 0,
+            "bot_green_guesses": 0,
+            "human_green_guesses": 0,
+            "incongruent_guesses": 0,
+        }
+    
+    num_rows = 0
+    total_duration = 0
+    
+    with open(GAMES_FILE_PATH, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            start = time.time()
+            if reader.line_num == 1:
+                continue
+                
+            guess_str = row[0]
+            hint_str = row[1]
+            board_state_str = row[2]
+
+            str_dict = "{" + re.sub(r'(\w+):', r'"\1":', board_state_str) + "}"
+            
+            guesses = ast.literal_eval(guess_str)
+            hint = hint_str
+            board_state = ast.literal_eval(str_dict)
+            
+            green_words = board_state["green"]
+            other_words = board_state["black"] + board_state["tan"]
+            board_words = green_words + other_words
+            board_words_randomized = np.random.choice(board_words, len(board_words), replace=False)
+            board_words = list(board_words_randomized)
+            hint_number = len(guesses)
+            
+            if hint_number not in groups:
+                continue
+            
+            bot_guesses = guess_from_hint(board_words, hint, hint_number)
+            
+            is_incongruent = 1 if len(bot_guesses) != hint_number else 0
+            
+            tracking[hint_number]["total_guesses"] += hint_number
+            tracking[hint_number]["bot_human_guesses"] += len([x for x in bot_guesses if x in guesses])
+            tracking[hint_number]["bot_green_guesses"] += len([x for x in bot_guesses if x in green_words])
+            tracking[hint_number]["human_green_guesses"] += len([x for x in guesses if x in green_words])
+            tracking[hint_number]["incongruent_guesses"] += is_incongruent
+
+            if is_incongruent:
+                print(f"Hint: {hint}")
+                print(f"Board state: {board_state}")
+                print(f"Guesses: {guesses}")
+                print(f"Bot guesses: {bot_guesses}")
+                print("\n\n")
+
+            if DEBUG:
+                print(f"Hint: {hint}")
+                print(f"Board state: {board_state}")
+                print(f"Guesses: {guesses}")
+                print(f"Bot guesses: {bot_guesses}")
+                print("\n\n")
+
+                duration = time.time() - start
+                total_duration += duration
+                
+            num_rows += 1
+            
+            if num_rows % 100 == 0:
+                print(f"Processed {num_rows} rows")
+
+    if DEBUG:
+        print(f"Average duration: {total_duration / num_rows}")
+
+    results = {}
+    for group in groups:
+        total_guesses = tracking[group]["total_guesses"]
+        bot_human_guesses = tracking[group]["bot_human_guesses"]
+        bot_green_guesses = tracking[group]["bot_green_guesses"]
+        human_green_guesses = tracking[group]["human_green_guesses"]
+        incongruent_guesses = tracking[group]["incongruent_guesses"]
+        
+        bot_human_fit = bot_human_guesses / total_guesses
+        human_performance = human_green_guesses / total_guesses
+        bot_performance = bot_green_guesses / total_guesses
+        
+        results[group] = {
+            "bot_human_fit": bot_human_fit,
+            "human_performance": human_performance,
+            "bot_performance": bot_performance,
+            "incongruent_guesses": incongruent_guesses,
+        }
+    
+    return results
 
 if __name__ == "__main__":
-    print(start_game(WORDS_TO_EMBEDDINGS, ALL_WORDS))
-    # pprint.pprint(WORDS_TO_EMBEDDINGS)
-    # pprint.pprint(ALL_WORDS)
-    # print(all_subsets(ALL_WORDS))
-    # print(len(ALL_WORDS))
-    pass
-
+    # board_words = ["apple", "car", "chair", "banana", "orange", "person", "dog", "cat", "table", "computer"]
+    # hint = "fruit"
+    # x = 3
+    # print(guess_from_hint(board_words, hint, x))
+    
+    print(evaluate_guesser_bot())
