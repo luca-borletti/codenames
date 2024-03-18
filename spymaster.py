@@ -155,8 +155,6 @@ def get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_
     all_subets = subsets(our_words, size)
     
     for subset in all_subets:
-        # random_words = np.random.choice(all_words, 1000, replace=False)
-        # for word in random_words:
         for word in all_words:
             if word not in board_words:
                 their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
@@ -221,7 +219,6 @@ def initialize_game(all_words):
 
 def evaluate_spymaster_with_guesser_bot(model):
     number_of_games = 500
-    # subsets_to_evaluate = [2,3]
     subset_size_to_evaluate = 2
     game_words = CODENAMES_WORDS
     words_to_embeddings = load_embeddings(model)
@@ -273,18 +270,6 @@ def evaluate_spymaster_with_guesser_bot(model):
         total_guesses += subset_size_to_evaluate
         if intended_guesses_this_round == subset_size_to_evaluate:
             perfect_hints += 1
-        # board_words, our_words, their_words = initialize_game(game_words)
-        # best_hint_for_each_subset = get_hints_over_each_subset(words_to_embeddings, dictionary_words, board_words, our_words, their_words, top_n=1, biggest_subset=BIGGEST_SUBSET)
-        # best_hint_for_each_subset = [x[0][1] for x in best_hint_for_each_subset]
-        # best_hint_for_each_subset = [(x[1], len(x[0]), x[0]) for x in best_hint_for_each_subset]
-        # print(f"Game {i + 1}: {best_hint_for_each_subset}")
-        # for hint, subset_size, actual_words in best_hint_for_each_subset:
-        #     guessed_words = guess_from_hint(board_words, hint, subset_size)
-            # results.append((subset_size, actual_words, guessed_words))
-            # total_guesses += subset_size
-            # correct_guesses += len([x for x in guessed_words if x in actual_words])
-            # print(f"Guessed words: {guessed_words} for hint {hint} and actual words {actual_words}")
-        # print("\n\n")
     old_stdout = sys.stdout
     with open(f"./data/results/{model}_results.txt", "a") as f:
         sys.stdout = f

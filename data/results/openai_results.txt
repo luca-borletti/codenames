@@ -1,0 +1,13 @@
+Model name: openai
+Average duration: 3.112650201320648
+GPT Misfires: 80
+Number of games played: 500
+Correct intended guesses: 394
+Correct green guesses: 560
+Number of perfect hints given: 88
+Total Guesses: 840
+
+
+
+
+
