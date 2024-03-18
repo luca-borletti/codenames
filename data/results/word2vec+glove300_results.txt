@@ -1,0 +1,13 @@
+Model name: word2vec+glove300
+Average duration: 7.667713606834412
+GPT Misfires: 39
+Number of games played: 500
+Correct intended guesses: 567
+Correct green guesses: 693
+Number of perfect hints given: 168
+Total Guesses: 922
+
+
+
+
+

@@ -1,0 +1,13 @@
+Model name: glove
+Average duration: 4.514782270431518
+GPT Misfires: 46
+Number of games played: 500
+Correct intended guesses: 522
+Correct green guesses: 698
+Number of perfect hints given: 149
+Total Guesses: 908
+
+
+
+
+

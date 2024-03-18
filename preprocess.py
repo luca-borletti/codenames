@@ -48,19 +48,33 @@ def embed_words(words, model_name):
             for i, word in enumerate(batch):
                 embeddings[word] = np.array(response[i].embedding)
             print(f"Finished embedding {len(embeddings)} words")
-    elif model_name == "glove":
-        model = gensim.downloader.load('glove-wiki-gigaword-300')
+    elif model_name == "glove300" or model_name == "word2vec300" or \
+         model_name == "glove100" or model_name == "glovetwitter200" or model_name == "fasttext":
+        if model_name == "glove300":
+            model = gensim.downloader.load('glove-wiki-gigaword-300')
+        elif model_name == "word2vec300":
+            model = gensim.downloader.load('word2vec-google-news-300')
+        elif model_name == "glove100":
+            model = gensim.downloader.load('glove-wiki-gigaword-100')
+        elif model_name == "glovetwitter200":
+            model = gensim.downloader.load('glove-twitter-200')
+        elif model_name == "fasttext":
+            model = gensim.downloader.load("fasttext-wiki-news-subwords-300")
+        
         for batch in word_batches:
             for i, word in enumerate(batch):
-                if word in model.wv:
-                    embeddings[word] = np.array(model.wv[word])
+                if word in model:
+                    embeddings[word] = np.array(model[word])
             print(f"Finished embedding {len(embeddings)} words")
-    elif model_name == "word2vec":
-        model = gensim.downloader.load('word2vec-google-news-300')
+    elif model_name == "word2vec+glove300":
+        model1 = gensim.downloader.load('word2vec-google-news-300')
+        model2 = gensim.downloader.load('glove-wiki-gigaword-300')
         for batch in word_batches:
             for i, word in enumerate(batch):
-                if word in model.wv:
-                    embeddings[word] = np.array(model.wv[word])
+                if word in model1 and word in model2:
+                    vec1 = np.array(model1[word])
+                    vec2 = np.array(model2[word])
+                    embeddings[word] = np.concatenate((vec1, vec2))
             print(f"Finished embedding {len(embeddings)} words")
 
     pickle_path = f"./data/embeddings/{model_name}_word_embeddings.pkl"
@@ -83,11 +97,9 @@ def process_all_words():
     return words
 
 
-
 if __name__ == '__main__':
     words = process_all_words()
-    models = ["openai"]
-    # models = ["word2vec", "glove"]
-    # models = ["openai", "word2vec", "glove"]
-    for model in models:
-        embed_words(words, model)
+    models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
+    model = "fasttext"
+    embed_words(words, model)
+

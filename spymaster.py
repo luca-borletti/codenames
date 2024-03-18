@@ -225,6 +225,11 @@ def evaluate_spymaster_with_guesser_bot(model):
     subset_size_to_evaluate = 2
     game_words = CODENAMES_WORDS
     words_to_embeddings = load_embeddings(model)
+
+    for word in game_words:
+        if word not in words_to_embeddings:
+            game_words.remove(word)
+
     dictionary_words = list(words_to_embeddings.keys())
     
     
@@ -298,8 +303,21 @@ def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
     return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
         
 if __name__ == "__main__":
-    # model = "glove"
-    model = "word2vec"
-    # model = "openai"
+    # print(load_codenames_words())
+    # print(evaluate_with_guesser_bot(ALL_WORDS, WORDS_TO_EMBEDDINGS))
+    # print(start_game(WORDS_TO_EMBEDDINGS, ALL_WORDS))
+    # pprint.pprint(WORDS_TO_EMBEDDINGS)
+    # pprint.pprint(ALL_WORDS)
+    # print(all_subsets(ALL_WORDS))
+    # print(len(ALL_WORDS))
+    models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
+    model = "glovetwitter200"
     evaluate_spymaster_with_guesser_bot(model)
-        
+
+
+# Hint: mobile
+# Our words: ['cell', 'apple', 'march', 'fighter', 'undertaker', 'eagle', 'himalayas', 'whip']
+# Their words: ['rabbit', 'octopus', 'hospital', 'sub', 'fly', 'poison', 'pan', 'ivory']
+# Intended Guesses: ['cell', 'apple']
+# Bot guesses: ['fighter', 'sub']
+# Example from glovetwitter200
