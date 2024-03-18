@@ -43,8 +43,6 @@ CODENAMES_WORDS = load_codenames_words()
 
 BOARD_SIZE = 16
 OUR_SIZE = 8
-# BOARD_SIZE = 25
-# OUR_SIZE = 9
 
 DEBUG = False
 
@@ -260,7 +258,7 @@ def evaluate_spymaster_with_guesser_bot(model):
         print(f"Duration: {duration}")
         total_duration += duration
         
-        if len(guessed_words) < subset_size_to_evaluate:
+        if len(guessed_words) != subset_size_to_evaluate:
             false_GPT_resp += 1
             continue
         
@@ -300,22 +298,8 @@ def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
     return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
         
 if __name__ == "__main__":
-    # print(load_codenames_words())
-    # print(evaluate_with_guesser_bot(ALL_WORDS, WORDS_TO_EMBEDDINGS))
-    # print(start_game(WORDS_TO_EMBEDDINGS, ALL_WORDS))
-    # pprint.pprint(WORDS_TO_EMBEDDINGS)
-    # pprint.pprint(ALL_WORDS)
-    # print(all_subsets(ALL_WORDS))
-    # print(len(ALL_WORDS))
-    model = "glove"
+    # model = "glove"
+    model = "word2vec"
+    # model = "openai"
     evaluate_spymaster_with_guesser_bot(model)
-
-
-
-""" 
-Use codenames 400 to choose from for board
-
-Evalute ChatGPT
-
-
-"""
+        

@@ -32,7 +32,6 @@ def embed_words(words, model_name):
     Returns:
         embeddings (dict) - dictionary mapping each word to its vector embedding
     """
-    words = [word.lower() for word in words]
     batch_size = 1000
     word_batches = []
     for i in range(0, len(words), batch_size):
@@ -48,18 +47,21 @@ def embed_words(words, model_name):
 
             for i, word in enumerate(batch):
                 embeddings[word] = np.array(response[i].embedding)
+            print(f"Finished embedding {len(embeddings)} words")
     elif model_name == "glove":
         model = gensim.downloader.load('glove-wiki-gigaword-300')
         for batch in word_batches:
             for i, word in enumerate(batch):
                 if word in model.wv:
                     embeddings[word] = np.array(model.wv[word])
+            print(f"Finished embedding {len(embeddings)} words")
     elif model_name == "word2vec":
         model = gensim.downloader.load('word2vec-google-news-300')
         for batch in word_batches:
             for i, word in enumerate(batch):
                 if word in model.wv:
                     embeddings[word] = np.array(model.wv[word])
+            print(f"Finished embedding {len(embeddings)} words")
 
     pickle_path = f"./data/embeddings/{model_name}_word_embeddings.pkl"
     with open(pickle_path, "wb") as f:
@@ -77,13 +79,15 @@ def process_all_words():
     with open(WORDS_FILE_PATH, "r") as f:
         words = f.readlines()
     for i in range(len(words)):
-        words[i] = words[i].strip()
+        words[i] = words[i].strip().lower()
     return words
+
 
 
 if __name__ == '__main__':
     words = process_all_words()
-    models = ["openai", "word2vec", "glove"]
+    models = ["openai"]
+    # models = ["word2vec", "glove"]
+    # models = ["openai", "word2vec", "glove"]
     for model in models:
         embed_words(words, model)
-
