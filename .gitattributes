@@ -1,3 +1,1 @@
-data/embeddings/glove_word_embeddings.pkl filter=lfs diff=lfs merge=lfs -text
-data/embeddings/openai_word_embeddings.pkl filter=lfs diff=lfs merge=lfs -text
-data/embeddings/word2vec_word_embeddings.pkl filter=lfs diff=lfs merge=lfs -text
+*_word_embeddings.pkl filter=lfs diff=lfs merge=lfs -text
