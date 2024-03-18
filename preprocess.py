@@ -11,19 +11,17 @@ import pprint
 
 import dotenv
 import os
+import gensim.downloader
 dotenv.load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-WORDS_TO_EMBEDDINGS_FILE_PATH_1 = "./data/words/all_words1.pkl"
-WORDS_TO_EMBEDDINGS_FILE_PATH_2 = "./data/words/all_words2.pkl"
-
-GOOGLE_TOP_10000_WORDS = "./data/words/google-10000-english-usa-no-swears.txt"
+WORDS_FILE_PATH = "./data/words/official_10000_english_words.txt"
 
 client = OpenAI(
     api_key=OPENAI_API_KEY,
 )
 
-def embed_words(words, pickle_path=False):
+def embed_words(words, model_name):
     """
     Embeds a list of words into numpy vectors.
 
@@ -34,6 +32,7 @@ def embed_words(words, pickle_path=False):
     Returns:
         embeddings (dict) - dictionary mapping each word to its vector embedding
     """
+    words = [word.lower() for word in words]
     batch_size = 1000
     word_batches = []
     for i in range(0, len(words), batch_size):
@@ -41,39 +40,41 @@ def embed_words(words, pickle_path=False):
 
     embeddings = {}
     
-    for batch in word_batches:
-        response = client.embeddings.create(model="text-embedding-3-small", input=batch)
-        response = response.data
-
-        for i, word in enumerate(batch):
-            embeddings[word] = np.array(response[i].embedding)
-
-    if pickle_path:
-        with open(pickle_path, "wb") as f:
-            pickle.dump(embeddings, f)
-
-    return embeddings
-
-def load_embeddings(pickle_path):
-    with open(pickle_path, "rb") as f:
-        embeddings = pickle.load(f)
-    return embeddings
-
-def load_all_embeddings():
-    embeddings1 = load_embeddings(WORDS_TO_EMBEDDINGS_FILE_PATH_1)
-    embeddings2 = load_embeddings(WORDS_TO_EMBEDDINGS_FILE_PATH_2)
-    embeddings = {**embeddings1, **embeddings2}
-    return embeddings
-
-def check(pickle_path):
-    with open(pickle_path, "rb") as f:
-        embeddings = pickle.load(f)
     
-    pprint.pprint(embeddings)
-    pprint.pprint(len(embeddings))
+    if model_name == "openai":
+        for batch in word_batches:
+            response = client.embeddings.create(model="text-embedding-3-small", input=batch)
+            response = response.data
+
+            for i, word in enumerate(batch):
+                embeddings[word] = np.array(response[i].embedding)
+    elif model_name == "glove":
+        model = gensim.downloader.load('glove-wiki-gigaword-300')
+        for batch in word_batches:
+            for i, word in enumerate(batch):
+                if word in model.wv:
+                    embeddings[word] = np.array(model.wv[word])
+    elif model_name == "word2vec":
+        model = gensim.downloader.load('word2vec-google-news-300')
+        for batch in word_batches:
+            for i, word in enumerate(batch):
+                if word in model.wv:
+                    embeddings[word] = np.array(model.wv[word])
+
+    pickle_path = f"./data/embeddings/{model_name}_word_embeddings.pkl"
+    with open(pickle_path, "wb") as f:
+        pickle.dump(embeddings, f)
+
+    return embeddings
+
+def load_embeddings(model_name):
+    pickle_path = f"./data/embeddings/{model_name}_word_embeddings.pkl"
+    with open(pickle_path, "rb") as f:
+        embeddings = pickle.load(f)
+    return embeddings
 
 def process_all_words():
-    with open(GOOGLE_TOP_10000_WORDS, "r") as f:
+    with open(WORDS_FILE_PATH, "r") as f:
         words = f.readlines()
     for i in range(len(words)):
         words[i] = words[i].strip()
@@ -81,14 +82,8 @@ def process_all_words():
 
 
 if __name__ == '__main__':
-    # words = process_all_words()
-    # words = words[:5000]
-    # embed_words(words, pickle_path=WORDS_TO_EMBEDDINGS_FILE_PATH_1)
-    # check(WORDS_TO_EMBEDDINGS_FILE_PATH_1)
-
-    # words = process_all_words()
-    # words = words[5001:]
-    # embed_words(words, pickle_path=WORDS_TO_EMBEDDINGS_FILE_PATH_2)
-    # check(WORDS_TO_EMBEDDINGS_FILE_PATH_2)
-    pass
+    words = process_all_words()
+    models = ["openai", "word2vec", "glove"]
+    for model in models:
+        embed_words(words, model)
 

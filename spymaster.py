@@ -27,15 +27,10 @@ import pprint
 import time
 import numpy as np
 import heapq
-from preprocess import load_all_embeddings
+from preprocess import load_embeddings
 from guesser import guess_from_hint
-
-
-WORDS_TO_EMBEDDINGS = load_all_embeddings()
-
-ALL_WORDS = list(WORDS_TO_EMBEDDINGS.keys())
-
-print(len(ALL_WORDS))
+from sklearn.metrics.pairwise import cosine_similarity
+import sys
 
 CODENAMES_WORDS_FILE_PATH = "./data/words/codenames_words.txt"
 
@@ -85,7 +80,7 @@ def subsets(s, n):
     all_subsets_with_first = [x + [s[0]] for x in subsets(s[1:], n - 1)]
     return all_subsets_without_first + all_subsets_with_first
 
-def cosine_similarity(x, y):
+def cosine_similarity2(x, y):
     """
     Calculates the cosine similarity between two vectors.
 
@@ -99,7 +94,7 @@ def cosine_similarity(x, y):
     return np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
 
 def similarity(x, y):
-    return cosine_similarity(x, y)
+    return cosine_similarity2(x, y)
 
 def get_hints_over_all_subsets(words_to_embeddings, all_words, board_words, our_words, their_words, top_n = 5):
     """
@@ -178,6 +173,35 @@ def get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_
             print(f"Processed {num_subsets} subsets")
     return best_hint
 
+def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_words, their_words, size = 2):
+    best_hint = None
+    best_sim = 0
+
+    our_words_set = set(our_words)
+    our_words_array = [words_to_embeddings[word] for word in our_words]
+    our_words_array = np.vstack(our_words_array)
+
+    their_words_array = [words_to_embeddings[word] for word in their_words]
+    their_words_array = np.vstack(their_words_array)
+
+    for word in all_words:
+        if word in our_words_set:
+            continue
+        word_embedding = words_to_embeddings[word]
+        our_similarities = cosine_similarity(our_words_array, [word_embedding]).reshape(-1)
+        their_similarities = cosine_similarity(their_words_array, [word_embedding]).reshape(-1)
+
+        indices = np.argpartition(our_similarities, -1 * size)[-1 * size:]
+        index = indices[0]
+        subset = [our_words[i] for i in indices]
+        our_worst_sim = our_similarities[index]
+        their_best_sim = np.max(their_similarities)
+
+        if their_best_sim < our_worst_sim:
+            if our_worst_sim > best_sim:
+                best_sim = our_worst_sim
+                best_hint = (subset, word)
+    return best_hint
 
 def start_game(words_to_embeddings, all_words):
     board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
@@ -197,13 +221,14 @@ def initialize_game(all_words):
     their_words = [word for word in board_words if word not in our_words]
     return list(board_words), list(our_words), list(their_words)
 
-def evaluate_spymaster_with_guesser_bot():
-    number_of_games = 4
+def evaluate_spymaster_with_guesser_bot(model):
+    number_of_games = 500
     # subsets_to_evaluate = [2,3]
     subset_size_to_evaluate = 2
     game_words = CODENAMES_WORDS
-    dictionary_words = ALL_WORDS
-    words_to_embeddings = WORDS_TO_EMBEDDINGS
+    words_to_embeddings = load_embeddings(model)
+    dictionary_words = list(words_to_embeddings.keys())
+    
     
     """ 
     Each game, we will initialize the game, get the best hints for each subset, and GPTGuesser guess the words.
@@ -213,12 +238,17 @@ def evaluate_spymaster_with_guesser_bot():
     
     total_duration = 0
     num_games = 0
+    false_GPT_resp = 0
+    intended_guesses = 0
+    total_guesses = 0
+    correct_guesses = 0
+    perfect_hints = 0
     
-    for i in range(number_of_games):
+    for _ in range(number_of_games):
         num_games += 1
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
-        (best_hint_subset, best_hint_word) = get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        (best_hint_subset, best_hint_word) = jack_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
         print(f"Hint: {best_hint_word}")
         print(f"Our words: {our_words}")
@@ -230,6 +260,16 @@ def evaluate_spymaster_with_guesser_bot():
         print(f"Duration: {duration}")
         total_duration += duration
         
+        if len(guessed_words) < subset_size_to_evaluate:
+            false_GPT_resp += 1
+            continue
+        
+        intended_guesses_this_round = len(set(best_hint_subset).intersection(set(guessed_words)))
+        intended_guesses += intended_guesses_this_round
+        correct_guesses += len(set(guessed_words).intersection(set(our_words)))
+        total_guesses += subset_size_to_evaluate
+        if intended_guesses_this_round == subset_size_to_evaluate:
+            perfect_hints += 1
         # board_words, our_words, their_words = initialize_game(game_words)
         # best_hint_for_each_subset = get_hints_over_each_subset(words_to_embeddings, dictionary_words, board_words, our_words, their_words, top_n=1, biggest_subset=BIGGEST_SUBSET)
         # best_hint_for_each_subset = [x[0][1] for x in best_hint_for_each_subset]
@@ -242,12 +282,22 @@ def evaluate_spymaster_with_guesser_bot():
             # correct_guesses += len([x for x in guessed_words if x in actual_words])
             # print(f"Guessed words: {guessed_words} for hint {hint} and actual words {actual_words}")
         # print("\n\n")
+    old_stdout = sys.stdout
+    with open(f"./data/results/{model}_results.txt", "a") as f:
+        sys.stdout = f
+        print(f"Model name:", model)
+        print(f"Average duration: {total_duration / num_games}")
+        print(f"GPT Misfires: {false_GPT_resp}")
+        print(f"Number of games played: {number_of_games}")
+        print(f"Correct intended guesses: {intended_guesses}")
+        print(f"Correct green guesses: {correct_guesses}")
+        print(f"Number of perfect hints given: {perfect_hints}")
+        print(f"Total Guesses: {total_guesses}")
+        print("\n\n\n\n")
+    sys.stdout = old_stdout
     
-    print(f"Average duration: {total_duration / num_games}")
-    # return correct_guesses / total_guesses
-    
-    
-
+def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
+    return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
         
 if __name__ == "__main__":
     # print(load_codenames_words())
@@ -257,8 +307,8 @@ if __name__ == "__main__":
     # pprint.pprint(ALL_WORDS)
     # print(all_subsets(ALL_WORDS))
     # print(len(ALL_WORDS))
-    evaluate_spymaster_with_guesser_bot()
-    pass
+    model = "glove"
+    evaluate_spymaster_with_guesser_bot(model)
 
 
 
