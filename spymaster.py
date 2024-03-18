@@ -321,3 +321,43 @@ if __name__ == "__main__":
 # Intended Guesses: ['cell', 'apple']
 # Bot guesses: ['fighter', 'sub']
 # Example from glovetwitter200
+    
+# Duration: 4.316485166549683
+# Hint: pulse
+# Our words: ['row', 'octopus', 'point', 'robin', 'wave', 'africa', 'stadium', 'heart']
+# Their words: ['bug', 'mercury', 'lead', 'turkey', 'cliff', 'pilot', 'fork', 'string']
+# Intended Guesses: ['heart', 'wave']
+# Bot guesses: ['wave', 'heart']
+# Example from fasttext
+    
+# Duration: 4.81409215927124
+# Hint: public
+# Our words: ['fork', 'dice', 'school', 'bell', 'worm', 'press', 'knight', 'charge']
+# Their words: ['stock', 'spell', 'line', 'pilot', 'hawk', 'telescope', 'kid', 'pie']
+# Intended Guesses: ['school', 'press']
+# Bot guesses: ['school', 'press']
+# From fasttext
+
+# Duration: 4.295626878738403
+# Hint: monitor
+# Our words: ['track', 'shoe', 'mammoth', 'server', 'watch', 'cook', 'iron', 'america']
+# Their words: ['post', 'state', 'band', 'africa', 'police', 'greece', 'hole', 'duck']
+# Intended Guesses: ['track', 'watch']
+# Bot guesses: ['watch', 'track']
+# from fasttext
+    
+# Duration: 4.8250181674957275
+# Hint: beast
+# Our words: ['switch', 'novel', 'mammoth', 'copper', 'ball', 'water', 'unicorn', 'roulette']
+# Their words: ['octopus', 'bottle', 'fish', 'bar', 'lock', 'card', 'green', 'root']
+# Intended Guesses: ['mammoth', 'unicorn']
+# Bot guesses: ['unicorn', 'mammoth']
+# from fasttext
+    
+# Duration: 4.30074405670166
+# Hint: sword
+# Our words: ['paper', 'tokyo', 'dragon', 'beijing', 'boom', 'knife', 'buck', 'car']
+# Their words: ['mouse', 'penguin', 'church', 'shark', 'opera', 'heart', 'slip', 'plate']
+# Intended Guesses: ['dragon', 'knife']
+# Bot guesses: ['dragon', 'knife']
+# from fasttext

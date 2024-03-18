@@ -1,0 +1,13 @@
+Model name: glovetwitter200
+Average duration: 6.45465383386612
+GPT Misfires: 62
+Number of games played: 500
+Correct intended guesses: 414
+Correct green guesses: 615
+Number of perfect hints given: 82
+Total Guesses: 876
+
+
+
+
+
