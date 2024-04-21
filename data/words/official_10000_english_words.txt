@@ -171,7 +171,6 @@ HORSESHOE
 HOSPITAL
 HOTEL
 ICE
-ICE CREAM
 INDIA
 IRON
 IVORY
@@ -201,7 +200,6 @@ LINE
 LINK
 LION
 LITTER
-LOCH NESS
 LOCK
 LOG
 LONDON
@@ -231,7 +229,6 @@ MUG
 NAIL
 NEEDLE
 NET
-NEW YORK
 NIGHT
 NINJA
 NOTE
@@ -2192,7 +2189,6 @@ neighbour
 net
 network
 nicely
-no way
 object
 objection
 obligation
@@ -2204,7 +2200,6 @@ occupy
 occur
 ocean
 o’clock
-of course
 operate
 oppose
 pace
@@ -2330,7 +2325,6 @@ predict
 practise
 praise
 potato
-post office
 pool
 politician
 policeman
@@ -3163,7 +3157,6 @@ mud
 motorway
 mortgage
 moreover
-mobile phone
 mixture
 numerous
 nuisance
@@ -3390,7 +3383,6 @@ e-book
 hearty
 incurable
 jockey
-junk food
 mania
 margarine
 mosque
@@ -3399,7 +3391,6 @@ proclaim
 shiver
 skilful
 socket
-sportsman somewhere
 sweetheart
 amazing
 definitely
@@ -4890,7 +4881,6 @@ careless
 cargo
 carpenter
 carriage
-carry on
 carsick
 cartoon
 cashier
@@ -5073,7 +5063,6 @@ immigrate
 immune
 impartial
 impolite
-income tax
 incomplete
 indirect
 indoor
@@ -8467,7 +8456,6 @@ mindless
 lullaby
 layout
 knob
-grown up
 flashy
 epic
 encode
@@ -8548,7 +8536,6 @@ duke
 dashing
 curry
 crumb
-crash down
 courier
 conclude
 cockroach
@@ -9662,7 +9649,6 @@ carbohydrate
 carbon
 carious
 carnivorous
-cast iron
 catchy
 cater
 cattish
@@ -10071,7 +10057,6 @@ latent
 lavishness
 lax
 laxative
-leap year
 leaseholder
 legalize
 leggy
@@ -10262,7 +10247,6 @@ piety
 pillar
 pillowcase
 pilotage
-pine cone
 pinprick
 placidity
 plash

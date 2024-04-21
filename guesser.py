@@ -12,7 +12,6 @@ import csv
 import re
 import ast
 import numpy as np
-from collections import defaultdict
 dotenv.load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 

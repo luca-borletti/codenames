@@ -9900,7 +9900,6 @@ flute
 glove
 himalayas
 horseshoe
-ice cream
 jupiter
 kangaroo
 ketchup
@@ -9908,12 +9907,10 @@ kiwi
 leprechaun
 limousine
 litter
-loch ness
 mammoth
 microscope
 millionaire
 mole
-new york
 ninja
 octopus
 parachute
@@ -9926,7 +9923,6 @@ pyramid
 racket
 ruler
 scorpion
-scuba diver
 skyscraper
 slug
 smuggler
