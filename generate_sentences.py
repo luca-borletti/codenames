@@ -198,7 +198,7 @@ def find_word_in_sentence(word, sentence):
 
 
 if __name__ == "__main__":
-    print(testing())
+    pass
 
 
 
