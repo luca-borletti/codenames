@@ -19,6 +19,7 @@ wnl = WordNetLemmatizer()
 client = OpenAI(
     api_key=OPENAI_API_KEY,
 )
+
 def move_files():
     with open('./data/words/paragraphs2.pkl', 'rb') as f:
         sentences = pickle.load(f)
@@ -198,7 +199,8 @@ def find_word_in_sentence(word, sentence):
 
 
 if __name__ == "__main__":
-    print(testing())
+    # print(testing())
+    pass
 
 
 

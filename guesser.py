@@ -5,6 +5,7 @@ Uses OpenAI's chat completion API to generate guesses.
 """
 
 import time
+import anthropic
 from openai import OpenAI
 import dotenv
 import os
@@ -14,27 +15,64 @@ import ast
 import numpy as np
 dotenv.load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-DEBUG = False
+DEBUG = True
 GAMES_FILE_PATH = "./data/games/hints_and_guesses.csv"
 
-client = OpenAI(
+openai_client = OpenAI(
     api_key=OPENAI_API_KEY,
 )
 
+anthropic_client = anthropic.Anthropic(
+    # defaults to os.environ.get("ANTHROPIC_API_KEY")
+    api_key=ANTHROPIC_API_KEY,
+)
+
+# message = openai_client.messages.create(
+#     model="claude-3-opus-20240229",
+#     max_tokens=1000,
+#     temperature=0,
+#     messages=[]
+# )
+# print(message.content)
+
+
+def gpt_4_turbo_guess_from_hint(prompt):
+    response = openai_client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": prompt},
+        ],
+        max_tokens=100,
+    )
+    response_text = response.choices[0].message.content.lower()
+    print(response_text)
+    return response_text
+
 def gpt_4_guess_from_hint(prompt):
-    response = client.chat.completions.create(
+    response = openai_client.chat.completions.create(
         model="gpt-4-turbo-preview",
         messages=[
             {"role": "system", "content": prompt},
         ],
-        max_tokens=20,
+        max_tokens=100,
     )
     response_text = response.choices[0].message.content.lower()
     return response_text
 
+def claude_3_guess_from_hint(prompt):
+    response = anthropic_client.completions.create(
+        model="claude-3-opus-20240229",
+        max_tokens_to_sample=1024,
+        prompt=prompt,
+    )
+    print(response)
+    response_text = response.completion
+    return response_text
+
 def gpt_3turbo_guess_from_hint(prompt):
-    response = client.chat.completions.create(
+    response = openai_client.chat.completions.create(
         model="gpt-3.5-turbo-0125",
         messages=[
             {"role": "system", "content": prompt}
@@ -42,10 +80,11 @@ def gpt_3turbo_guess_from_hint(prompt):
         max_tokens=100,
     )
     response_text = response.choices[0].message.content.lower()
+    print(response_text)
     return response_text
-    
+
 def gpt_3_guess_from_hint(prompt):
-    response = client.completions.create(
+    response = openai_client.completions.create(
         model="gpt-3.5-turbo-instruct",
         prompt=prompt,
         max_tokens=100,
@@ -63,7 +102,8 @@ def guess_from_hint(board_words, hint, x):
     # prompt = f"Given the words {', '.join(board_words)} on the Codenames board and the hint '{hint}', " \
     #          f"list {x} words from the board that are most likely to be related to the hint:\n"
 
-    response_text = gpt_3turbo_guess_from_hint(prompt)
+    # response_text = gpt_3turbo_guess_from_hint(prompt)
+    response_text = gpt_4_turbo_guess_from_hint(prompt)
     # response_text = gpt_3_guess_from_hint(prompt)
     # response_text = gpt_4_guess_from_hint(prompt)
     filtered_guesses = [word for word in board_words if word in response_text][:x]
@@ -142,12 +182,13 @@ def evaluate_guesser_bot():
             tracking[hint_number]["human_green_guesses"] += len([x for x in guesses if x in green_words])
             tracking[hint_number]["incongruent_guesses"] += is_incongruent
 
-            if is_incongruent:
-                print(f"Hint: {hint}")
-                print(f"Board state: {board_state}")
-                print(f"Guesses: {guesses}")
-                print(f"Bot guesses: {bot_guesses}")
-                print("\n\n")
+            # if is_incongruent:
+                # print(f"INCONGRUENT GUESS")
+                # print(f"Hint: {hint}")
+                # print(f"Board state: {board_state}")
+                # print(f"Guesses: {guesses}")
+                # print(f"Bot guesses: {bot_guesses}")
+                # print("\n\n")
 
             if DEBUG:
                 print(f"Hint: {hint}")

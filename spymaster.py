@@ -31,6 +31,7 @@ from preprocess import load_embeddings
 from guesser import guess_from_hint
 from sklearn.metrics.pairwise import cosine_similarity
 import sys
+import tqdm
 
 CODENAMES_WORDS_FILE_PATH = "./data/words/codenames_words.txt"
 
@@ -79,16 +80,6 @@ def subsets(s, n):
     return all_subsets_without_first + all_subsets_with_first
 
 def cosine_similarity2(x, y):
-    """
-    Calculates the cosine similarity between two vectors.
-
-    Parameters:
-    x (array-like): The first vector.
-    y (array-like): The second vector.
-
-    Returns:
-    float: The cosine similarity between x and y.
-    """
     return np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
 
 def similarity(x, y):
