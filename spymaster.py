@@ -144,72 +144,7 @@ def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embedd
                     best_sim = our_worst_sims[j]
                     best_hint = ([our_words[i] for i in our_best_sims_indices[:, j]], batch_words[j])
     return best_hint
-    
 
-def start_game(words_to_embeddings, all_words):
-    board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
-    our_words = np.random.choice(board_words, OUR_SIZE, replace=False)
-    their_words = [word for word in board_words if word not in our_words]
-    
-    print(f"Board words: {board_words}")
-    print(f"Our words: {our_words}")
-    print(f"Their words: {their_words}")
-    
-    return get_hints_over_each_subset(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
-    # return get_hints_over_all_subsets(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
-
-
-def multi_dimension_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_words, their_words, size = 2):
-    '''
-    Words to embeddings maps a word to a list of its 3 embeddings
-    '''
-    best_hint = None
-    best_sim = 0
-
-    our_words_set = set(our_words)
-    our_words_array = []
-    for i in range(3):
-        our_words_array_elem = [words_to_embeddings[word][i] for word in our_words]
-        our_words_array_elem = np.vstack(our_words_array_elem)
-        our_words_array.append(our_words_array_elem)
-
-    their_words_array = []
-    for i in range(3):
-        their_words_array_elem = [words_to_embeddings[word][i] for word in their_words]
-        their_words_array_elem = np.vstack(their_words_array_elem)
-        their_words_array.append(their_words_array_elem)
-
-    for word in words_to_embeddings:
-        if word in our_words_set:
-            continue
-        word_embeddings = words_to_embeddings[word]
-        our_similarities = []
-        their_similarities = []
-
-        for i in range(3):
-            for j in range(3):
-                our_similarity = cosine_similarity(our_words_array[i], word_embeddings[j]).reshape(-1)
-                their_similarity = cosine_similarity(their_words_array[i], word_embeddings[j]).reshape(-1)
-                our_similarities.append(our_similarity)
-                their_similarities.append(their_similarity)
-        
-        our_similarities = np.vstack(our_similarities)
-        their_similarities = np.vstack(their_similarities)
-        our_similarities = np.max(our_similarities, axis=0).reshape(-1)
-        their_similarities = np.max(their_similarities, axis=0).reshape(-1)
-
-        indices = np.argpartition(our_similarities, -1 * size)[-1 * size:]
-        index = indices[0]
-        subset = [our_words[i] for i in indices]
-        our_worst_sim = our_similarities[index]
-        their_best_sim = np.max(their_similarities)
-
-        if their_best_sim < our_worst_sim:
-            if our_worst_sim > best_sim:
-                best_sim = our_worst_sim
-                best_hint = (subset, word)
-    return best_hint
-    
 def initialize_game(all_words):
     board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
     our_words = np.random.choice(board_words, OUR_SIZE, replace=False)
@@ -222,6 +157,9 @@ def make_games_context_embeddings(model):
     game_words = CODENAMES_WORDS
     words_to_embeddings = load_context_embeddings(model)
 
+    for word in words_to_embeddings:
+        words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
+
     for word in game_words:
         if word not in words_to_embeddings:
             game_words.remove(word)
@@ -231,7 +169,7 @@ def make_games_context_embeddings(model):
     for _ in range(number_of_games):
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
-        (best_hint_subset, best_hint_word) = multi_dimension_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         print(f"Hint: {best_hint_word}")
         print(f"Our words: {our_words}")
         print(f"Their words: {their_words}")
@@ -240,12 +178,16 @@ def make_games_context_embeddings(model):
         duration = time.time() - start
         print(f"Duration: {duration}")
 
-def evaluate_spymaster_with_guesser_bot(model):
+def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="CONTEXT"):
     number_of_games = 500
     subset_size_to_evaluate = 2
     game_words = CODENAMES_WORDS
-    words_to_embeddings = load_embeddings(model)
-    words_to_multi_embeddings = { word: np.array([words_to_embeddings[word]]) for word in words_to_embeddings} #!
+    if type_of_embedding == "CONTEXT":
+        words_to_embeddings = load_context_embeddings(model)
+        for word in words_to_embeddings:
+            words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
+    else:
+        words_to_embeddings = load_embeddings(model)
 
     for word in game_words:
         if word not in words_to_embeddings:
@@ -272,20 +214,11 @@ def evaluate_spymaster_with_guesser_bot(model):
         num_games += 1
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
-        init_time = time.time()
-        (best_hint_subset, best_hint_word) = jack_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
-        past_algo_time = time.time() - init_time
-        print(f"PAST ALGO TIME: {past_algo_time}")
-        print(f"PAST ALGO HINT: {best_hint_word}")
-        print(f"PAST ALGO SUBSET: {best_hint_subset}")
-        init_time = time.time()
-        (multi_best_hint_subset, multi_best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
-        new_algo_time = time.time() - init_time
-        print(f"NEW ALGO TIME: {new_algo_time}")
-        print(f"NEW ALGO HINT: {multi_best_hint_word}")
-        print(f"NEW ALGO SUBSET: {multi_best_hint_subset}")
-        assert best_hint_subset == multi_best_hint_subset
-        assert best_hint_word == multi_best_hint_word
+        if type_of_embedding == "CONTEXT":
+            (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        else:
+            (best_hint_subset, best_hint_word) = jack_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        
         guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
         print(f"Hint: {best_hint_word}")
         print(f"Our words: {our_words}")
@@ -325,7 +258,14 @@ def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
     return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
         
 if __name__ == "__main__":
-    # models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
-    # model = "fasttext"
-    # evaluate_spymaster_with_guesser_bot(model)
-    make_games_context_embeddings("bert")
+    type_of_embeddings = ["CONTEXT", "NO CONTEXT"]
+    
+    type_of_embedding = "NO CONTEXT"
+    models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
+    model = "fasttext"
+   
+    type_of_embedding = "NO CONTEXT"
+    models = ["bert", "deberta"]
+    model = "bert"
+    
+    evaluate_spymaster_with_guesser_bot(model, type_of_embedding)

@@ -15,7 +15,7 @@ wnl = WordNetLemmatizer()
 bad_count = 0
 
 def load_context_embeddings(model_name):
-    pickle_path = f"data/contextual_embeddings/cleaned_{model_name}_word_embeddings.pkl"
+    pickle_path = f"data/contextual_embeddings/{model_name}_word_embeddings.pkl"
     with open(pickle_path, "rb") as f:
         embeddings = pickle.load(f)
     return embeddings
@@ -42,7 +42,7 @@ def find_word_in_sentence(word, tokens):
             return_set.add(i)
     return return_set
 
-def embed(word, context, model, tokenizer):
+def embed_singular_word(word, context, model, tokenizer):
     inputs = tokenizer(context, return_tensors="pt")
 
     token_ids = inputs['input_ids'][0]
@@ -82,45 +82,27 @@ def embed_all_words_given_model(model_name, model, tokenizer):
 
         sents = sentences[word]
         for i, sent in enumerate(sents):
-            word_string = f"{word}_{i}"
-            embedding = embed(word, sent, model, tokenizer)
+            embedding = embed_singular_word(word, sent, model, tokenizer)
             if np.all(embedding == 0):
                 continue
-            embeddings[word_string] = embedding
+            if word not in embeddings:
+                embeddings[word] = []
+            embeddings[word].append(embedding)
         count += 1
 
     with open(f"./data/contextual_embeddings/{model_name}_word_embeddings.pkl", "wb") as f:
         pickle.dump(embeddings, f)
 
-def clean_model(model_name):
-    '''
-    Only keep words with 3 sentences. Changes so each key maps to a list of embeddings
-    '''
-    with open(f"./data/contextual_embeddings/{model_name}_word_embeddings.pkl", "rb") as f:
-        embeddings = pickle.load(f)
-    
-    words = {}
-    for key in embeddings:
-        word = key.split("_")[0]
-        if word not in words:
-            words[word] = []
-        words[word].append(key)
+def embed(model_name):
+    if model_name == "deberta":
+        configuration = DebertaV2Config()
+        model = DebertaV2Model(configuration)
+        tokenizer = DebertaV2TokenizerFast.from_pretrained('microsoft/deberta-v2-xlarge')
+    elif model_name == "bert":
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        model = BertModel.from_pretrained("bert-base-uncased")    
 
-    remove_words = set()
-    for word in words:
-        if len(words[word]) != 3:
-            remove_words.add(word)
-    words = {word : words[word] for word in words if word not in remove_words}
-    
-    new_embeddings = {}
-    for word in words:
-        if word not in new_embeddings:
-            new_embeddings[word] = []
-        for key in words[word]:
-            new_embeddings[word].append(embeddings[key])
-    
-    with open(f"./data/contextual_embeddings/cleaned_{model_name}_word_embeddings.pkl", "wb") as f:
-        pickle.dump(new_embeddings, f)
+    embed_all_words_given_model(model_name, model, tokenizer)
     
 def check_board_words(model_name):
     '''
@@ -155,7 +137,7 @@ def find_distance(word1, word2, model_name):
             best_similarity = max(sim, best_similarity)
     return best_similarity
 
-def print_pargraphs(word):
+def print_paragraphs(word):
     with open("data/words/paragraphs.pkl", "rb") as f:
         paragraphs = pickle.load(f)
     print(paragraphs[word])
@@ -163,13 +145,15 @@ def print_pargraphs(word):
 
 
 if __name__ == "__main__":
-    # configuration = DebertaV2Config()
-    # model = DebertaV2Model(configuration)
-    # tokenizer = DebertaV2TokenizerFast.from_pretrained('microsoft/deberta-v2-xlarge')
+    model_names = ["deberta", "bert"]
+    model_name = "bert"
+    embed(model_name)
 
-    # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    # model = BertModel.from_pretrained("bert-base-uncased")    
 
-    # embed_all_words_given_model("bert", model, tokenizer)
-    # clean_model("bert")
-    check_board_words("bert")
+# Hint: square
+# Our words: ['cat', 'march', 'center', 'lawyer', 'antarctica', 'string', 'circle', 'bottle']
+# Their words: ['club', 'date', 'root', 'bat', 'conductor', 'olympus', 'amazon', 'nail']
+# Intended Guesses: ['center', 'circle', 'march']
+    
+# Paragraphs for square:
+# ['i saw a group of friends laughing and chatting in the town square, surrounded by colorful buildings and street vendors selling their goods. the square was bustling with activity as people milled about, enjoying the sunny day and lively atmosphere.', 'the answer to the math problem required me to find the square of the number 5, which turned out to be 25. after calculating the square of a few more numbers, i began to grasp the relationship between a number and its square.', 'the teacher instructed us to draw a square on the graph paper, making sure all four sides were of equal length and all four angles were right angles. as i carefully plotted each point and connected the lines, a perfect square took shape on the page.']
