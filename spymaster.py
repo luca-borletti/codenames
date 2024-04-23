@@ -189,9 +189,67 @@ def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words,
                 best_sim = our_worst_sim
                 best_hint = (subset, word)
     return best_hint
+    
+def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, size = 2):
+    best_hint = None
+    best_sim = 0
 
-def multi_dimension_get_best_hint_of_same_size(words_to_embeddings, board_words, our_words, their_words, size = 2):
-    pass
+    our_words_embeddings = [words_to_multi_embeddings[word] for word in our_words]
+    our_words_embeddings = np.vstack(our_words_embeddings)
+    our_word_index_to_embedding_indices = []
+    curr_index = 0
+    for i, word in enumerate(our_words):
+        num_definitions = words_to_multi_embeddings[word].shape[0]
+        our_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
+        curr_index += num_definitions
+
+    their_words_embeddings = [words_to_multi_embeddings[word] for word in their_words]
+    their_words_embeddings = np.vstack(their_words_embeddings)
+    their_word_index_to_embedding_indices = []
+    curr_index = 0
+    for i, word in enumerate(their_words):
+        num_definitions = words_to_multi_embeddings[word].shape[0]
+        their_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
+        curr_index += num_definitions
+
+    batch_size = 500    
+    all_words = [word for word in all_words if word not in board_words]
+
+    for i in range(0, len(all_words), batch_size):
+        batch_words = all_words[i:i+batch_size]
+        batch_embeddings = [words_to_multi_embeddings[word] for word in batch_words]
+        batch_embeddings = np.vstack(batch_embeddings)
+        batch_word_index_to_embedding_indices = []
+        curr_index = 0
+        for i, word in enumerate(batch_words):
+            num_definitions = words_to_multi_embeddings[word].shape[0]
+            batch_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
+            curr_index += num_definitions
+        
+        our_similarities = cosine_similarity(our_words_embeddings, batch_embeddings)
+        their_similarities = cosine_similarity(their_words_embeddings, batch_embeddings)
+        
+        max_similarities_per_our_word = np.array([np.max(our_similarities[indices], axis=0) for indices in our_word_index_to_embedding_indices])
+        max_similarities_per_their_word = np.array([np.max(their_similarities[indices], axis=0) for indices in their_word_index_to_embedding_indices])
+        
+        max_our_similarities_per_batch_word = np.array([np.max(max_similarities_per_our_word[:, indices], axis=1) for indices in batch_word_index_to_embedding_indices])
+        max_our_similarities_per_batch_word = np.transpose(max_our_similarities_per_batch_word)
+        
+        max_their_similarities_per_batch_word = np.array([np.max(max_similarities_per_their_word[:, indices], axis=1) for indices in batch_word_index_to_embedding_indices])
+        max_their_similarities_per_batch_word = np.transpose(max_their_similarities_per_batch_word)
+        
+        our_best_sims_indices = np.argpartition(max_our_similarities_per_batch_word, -1 * size, axis=0)[-1 * size:]
+        our_worst_sims_indices = our_best_sims_indices[0, :]
+        our_worst_sims = max_our_similarities_per_batch_word[our_worst_sims_indices, range(max_our_similarities_per_batch_word.shape[1])]
+        
+        their_best_sims = np.max(max_their_similarities_per_batch_word, axis=0)
+        
+        for j in range(len(batch_words)):
+            if their_best_sims[j] < our_worst_sims[j]:
+                if our_worst_sims[j] > best_sim:
+                    best_sim = our_worst_sims[j]
+                    best_hint = ([our_words[i] for i in our_best_sims_indices[:, j]], batch_words[j])
+    return best_hint
     
 
 def start_game(words_to_embeddings, all_words):
@@ -217,6 +275,7 @@ def evaluate_spymaster_with_guesser_bot(model):
     subset_size_to_evaluate = 2
     game_words = CODENAMES_WORDS
     words_to_embeddings = load_embeddings(model)
+    words_to_multi_embeddings = { word: np.array([words_to_embeddings[word]]) for word in words_to_embeddings} #!
 
     for word in game_words:
         if word not in words_to_embeddings:
@@ -243,7 +302,20 @@ def evaluate_spymaster_with_guesser_bot(model):
         num_games += 1
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
+        init_time = time.time()
         (best_hint_subset, best_hint_word) = jack_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        past_algo_time = time.time() - init_time
+        print(f"PAST ALGO TIME: {past_algo_time}")
+        print(f"PAST ALGO HINT: {best_hint_word}")
+        print(f"PAST ALGO SUBSET: {best_hint_subset}")
+        init_time = time.time()
+        (multi_best_hint_subset, multi_best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        new_algo_time = time.time() - init_time
+        print(f"NEW ALGO TIME: {new_algo_time}")
+        print(f"NEW ALGO HINT: {multi_best_hint_word}")
+        print(f"NEW ALGO SUBSET: {multi_best_hint_subset}")
+        assert best_hint_subset == multi_best_hint_subset
+        assert best_hint_word == multi_best_hint_word
         guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
         print(f"Hint: {best_hint_word}")
         print(f"Our words: {our_words}")
@@ -290,6 +362,7 @@ if __name__ == "__main__":
     # pprint.pprint(ALL_WORDS)
     # print(all_subsets(ALL_WORDS))
     # print(len(ALL_WORDS))
-    models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
+    # models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
     model = "fasttext"
     evaluate_spymaster_with_guesser_bot(model)
+    pass

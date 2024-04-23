@@ -47,7 +47,7 @@ def gpt_4_turbo_guess_from_hint(prompt):
         max_tokens=100,
     )
     response_text = response.choices[0].message.content.lower()
-    print(response_text)
+    # print(response_text)
     return response_text
 
 def gpt_4_guess_from_hint(prompt):
@@ -67,7 +67,7 @@ def claude_3_guess_from_hint(prompt):
         max_tokens_to_sample=1024,
         prompt=prompt,
     )
-    print(response)
+    # print(response)
     response_text = response.completion
     return response_text
 
@@ -80,7 +80,7 @@ def gpt_3turbo_guess_from_hint(prompt):
         max_tokens=100,
     )
     response_text = response.choices[0].message.content.lower()
-    print(response_text)
+    # print(response_text)
     return response_text
 
 def gpt_3_guess_from_hint(prompt):
