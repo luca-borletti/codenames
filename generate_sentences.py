@@ -192,15 +192,12 @@ def find_word_in_sentence(word, sentence):
         if len(base_words.intersection(token_set)) != 0:
             return i
     return -1
-
-    
     
             
 
 
 if __name__ == "__main__":
     # print(testing())
-    pass
     pass
 
 

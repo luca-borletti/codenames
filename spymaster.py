@@ -32,6 +32,8 @@ from guesser import guess_from_hint
 from sklearn.metrics.pairwise import cosine_similarity
 import sys
 import tqdm
+import pickle
+from context_preprocess import load_context_embeddings
 
 CODENAMES_WORDS_FILE_PATH = "./data/words/codenames_words.txt"
 
@@ -46,119 +48,11 @@ BOARD_SIZE = 16
 OUR_SIZE = 8
 
 DEBUG = False
-
-def all_subsets(s):
-    """ return all subsets of s """
-    if len(s) == 0:
-        return [[]]
-    all_subsets_without_first = all_subsets(s[1:])
-    all_subsets_with_first = [x + [s[0]] for x in all_subsets_without_first]
-    return all_subsets_without_first + all_subsets_with_first
-
-def all_nonempty_subsets(s):
-    return [x for x in all_subsets(s) if len(x) > 0]
-
-def subsets(s, n):
-    """
-    Generate all subsets of size n from a given set s.
-
-    Parameters:
-    s (list): The input set.
-    n (int): The size of subsets to generate.
-
-    Returns:
-    list: A list of all subsets of size n.
-    """
-    if n == 0:
-        return []
-    if n == 1:
-        return [[x] for x in s]
-    if len(s) == n:
-        return [s]
-    all_subsets_without_first = subsets(s[1:], n)
-    all_subsets_with_first = [x + [s[0]] for x in subsets(s[1:], n - 1)]
-    return all_subsets_without_first + all_subsets_with_first
-
 def cosine_similarity2(x, y):
     return np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
 
 def similarity(x, y):
     return cosine_similarity2(x, y)
-
-def get_hints_over_all_subsets(words_to_embeddings, all_words, board_words, our_words, their_words, top_n = 5):
-    """
-    Hints the best word subsets based on their similarity scores.
-
-    Args:
-        all_words (list): A list of all possible words.
-        board_words (list): A list of words on the game board.
-        our_words (list): A list of words that belong to our team.
-        their_words (list): A list of words that belong to the opposing team.
-
-    Returns:
-        list: A list of the best word subsets, the word to hint, and the 
-        worst similarity score between the word to hint and our words.
-    """
-    best_subsets = []
-    num_subsets = 0
-    heapq.heapify(best_subsets)
-    for i in range(2, len(our_words) + 1):
-        for subset in subsets(our_words, i):
-            for word in all_words:
-                if word not in board_words:
-                    their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
-                    our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
-                    if their_best_sim < our_worst_sim:
-                        heapq.heappush(best_subsets, (our_worst_sim, (subset, word)))
-                        if len(best_subsets) > top_n:
-                            heapq.heappop(best_subsets)
-            num_subsets += 1
-            if num_subsets % 10 == 0:
-                print(f"Processed {num_subsets} subsets")
-    return best_subsets
-
-def get_hints_over_each_subset(words_to_embeddings, all_words, board_words, our_words, their_words, top_n = 5, biggest_subset = 2):
-    best_subsets_per_group = []
-    num_subsets = 0
-    for i in range(2, biggest_subset + 1):
-        best_subsets_for_group = []
-        heapq.heapify(best_subsets_for_group)
-        for subset in subsets(our_words, i):
-            for word in all_words:
-                if word not in board_words:
-                    their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
-                    our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
-                    if their_best_sim < our_worst_sim:
-                        heapq.heappush(best_subsets_for_group, (our_worst_sim, (subset, word)))
-                        if len(best_subsets_for_group) > top_n:
-                            heapq.heappop(best_subsets_for_group)
-            num_subsets += 1
-            if num_subsets % 10 == 0:
-                if DEBUG:
-                    print(f"Processed {num_subsets} subsets")
-        best_subsets_per_group.append(best_subsets_for_group)
-    return best_subsets_per_group
-
-def get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_words, their_words, size = 2):
-    best_hint = None
-    best_sim = 0
-    num_subsets = 0
-    all_subets = subsets(our_words, size)
-    
-    for subset in all_subets:
-        for word in all_words:
-            if word not in board_words:
-                their_best_sim = max([similarity(words_to_embeddings[word], words_to_embeddings[their_word]) for their_word in their_words])
-                our_worst_sim = min([similarity(words_to_embeddings[word], words_to_embeddings[our_word]) for our_word in subset])
-                if their_best_sim < our_worst_sim:
-                    if our_worst_sim > best_sim:
-                        best_sim = our_worst_sim
-                        best_hint = (subset, word)
-        num_subsets += 1
-        if num_subsets % 10 == 0:
-            # if DEBUG:
-            print(f"Processed {num_subsets} subsets")
-    return best_hint
 
 def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_words, their_words, size = 2):
     best_hint = None
@@ -190,27 +84,86 @@ def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words,
                 best_hint = (subset, word)
     return best_hint
 
-def multi_dimension_get_best_hint_of_same_size(words_to_embeddings, board_words, our_words, their_words, size = 2):
-    pass
-    
+def multi_dimension_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_words, their_words, size = 2):
+    '''
+    Words to embeddings maps a word to a list of its 3 embeddings
+    '''
+    best_hint = None
+    best_sim = 0
 
-def start_game(words_to_embeddings, all_words):
-    board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
-    our_words = np.random.choice(board_words, OUR_SIZE, replace=False)
-    their_words = [word for word in board_words if word not in our_words]
-    
-    print(f"Board words: {board_words}")
-    print(f"Our words: {our_words}")
-    print(f"Their words: {their_words}")
-    
-    return get_hints_over_each_subset(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
-    # return get_hints_over_all_subsets(words_to_embeddings, list(all_words), list(board_words), list(our_words), list(their_words))
+    our_words_set = set(our_words)
+    our_words_array = []
+    for i in range(3):
+        our_words_array_elem = [words_to_embeddings[word][i] for word in our_words]
+        our_words_array_elem = np.vstack(our_words_array_elem)
+        our_words_array.append(our_words_array_elem)
 
+    their_words_array = []
+    for i in range(3):
+        their_words_array_elem = [words_to_embeddings[word][i] for word in their_words]
+        their_words_array_elem = np.vstack(their_words_array_elem)
+        their_words_array.append(their_words_array_elem)
+
+    for word in words_to_embeddings:
+        if word in our_words_set:
+            continue
+        word_embeddings = words_to_embeddings[word]
+        our_similarities = []
+        their_similarities = []
+
+        for i in range(3):
+            for j in range(3):
+                our_similarity = cosine_similarity(our_words_array[i], word_embeddings[j]).reshape(-1)
+                their_similarity = cosine_similarity(their_words_array[i], word_embeddings[j]).reshape(-1)
+                our_similarities.append(our_similarity)
+                their_similarities.append(their_similarity)
+        
+        our_similarities = np.vstack(our_similarities)
+        their_similarities = np.vstack(their_similarities)
+        our_similarities = np.max(our_similarities, axis=0).reshape(-1)
+        their_similarities = np.max(their_similarities, axis=0).reshape(-1)
+
+        indices = np.argpartition(our_similarities, -1 * size)[-1 * size:]
+        index = indices[0]
+        subset = [our_words[i] for i in indices]
+        our_worst_sim = our_similarities[index]
+        their_best_sim = np.max(their_similarities)
+
+        if their_best_sim < our_worst_sim:
+            if our_worst_sim > best_sim:
+                best_sim = our_worst_sim
+                best_hint = (subset, word)
+    return best_hint
+    
 def initialize_game(all_words):
     board_words = np.random.choice(all_words, BOARD_SIZE, replace=False)
     our_words = np.random.choice(board_words, OUR_SIZE, replace=False)
     their_words = [word for word in board_words if word not in our_words]
     return list(board_words), list(our_words), list(their_words)
+
+def make_games_context_embeddings(model):
+    number_of_games = 500
+    subset_size_to_evaluate = 3
+    game_words = CODENAMES_WORDS
+    words_to_embeddings = load_context_embeddings(model)
+
+    for word in game_words:
+        if word not in words_to_embeddings:
+            game_words.remove(word)
+
+    dictionary_words = list(words_to_embeddings.keys())
+
+    for _ in range(number_of_games):
+        start = time.time()
+        board_words, our_words, their_words = initialize_game(game_words)
+        (best_hint_subset, best_hint_word) = multi_dimension_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        print(f"Hint: {best_hint_word}")
+        print(f"Our words: {our_words}")
+        print(f"Their words: {their_words}")
+        print(f"Intended Guesses: {best_hint_subset}")
+        print("\n\n")
+        duration = time.time() - start
+        print(f"Duration: {duration}")
 
 def evaluate_spymaster_with_guesser_bot(model):
     number_of_games = 500
@@ -283,13 +236,7 @@ def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
     return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
         
 if __name__ == "__main__":
-    # print(load_codenames_words())
-    # print(evaluate_with_guesser_bot(ALL_WORDS, WORDS_TO_EMBEDDINGS))
-    # print(start_game(WORDS_TO_EMBEDDINGS, ALL_WORDS))
-    # pprint.pprint(WORDS_TO_EMBEDDINGS)
-    # pprint.pprint(ALL_WORDS)
-    # print(all_subsets(ALL_WORDS))
-    # print(len(ALL_WORDS))
-    models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
-    model = "fasttext"
-    evaluate_spymaster_with_guesser_bot(model)
+    # models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
+    # model = "fasttext"
+    # evaluate_spymaster_with_guesser_bot(model)
+    make_games_context_embeddings("bert")
