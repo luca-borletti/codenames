@@ -85,6 +85,11 @@ def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words,
     return best_hint
     
 def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, size = 2):
+    '''
+    words_to_multi_embeddings maps a word to a numpy vector of size n x m.
+    n - the number of difference embeddings for the word
+    m - dimension of embeddings
+    '''
     best_hint = None
     best_sim = 0
 
