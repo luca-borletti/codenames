@@ -178,15 +178,15 @@ def make_games_context_embeddings(model):
         duration = time.time() - start
         print(f"Duration: {duration}")
 
-def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="CONTEXT"):
+def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
     number_of_games = 500
     subset_size_to_evaluate = 2
     game_words = CODENAMES_WORDS
-    if type_of_embedding == "CONTEXT":
+    if type_of_embedding == "MULTI-DIM":
         words_to_embeddings = load_context_embeddings(model)
         for word in words_to_embeddings:
             words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
-    else:
+    elif type_of_embedding == "NO MULTI-DIM":
         words_to_embeddings = load_embeddings(model)
 
     for word in game_words:
@@ -214,9 +214,9 @@ def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="CONTEXT"):
         num_games += 1
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
-        if type_of_embedding == "CONTEXT":
+        if type_of_embedding == "MULTI-DIM":
             (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
-        else:
+        elif type_of_embedding == "NO MULTI-DIM":
             (best_hint_subset, best_hint_word) = jack_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         
         guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
@@ -258,13 +258,13 @@ def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
     return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
         
 if __name__ == "__main__":
-    type_of_embeddings = ["CONTEXT", "NO CONTEXT"]
-    
-    type_of_embedding = "NO CONTEXT"
+    type_of_embeddings = ["MULTI-DIM", "NO MULTI-DIM"]
+
+    type_of_embedding = "NO MULTI-DIM"
     models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
     model = "fasttext"
    
-    type_of_embedding = "NO CONTEXT"
+    type_of_embedding = "MULTI-DIM"
     models = ["bert", "deberta"]
     model = "bert"
     
