@@ -132,18 +132,8 @@ def get_context_embedding(bert_embeddings, batch_words, our_words, their_words):
     max_their_similarities_per_batch_word = np.transpose(max_their_similarities_per_batch_word)
 
     return max_our_similarities_per_batch_word, max_their_similarities_per_batch_word
-    
-<<<<<<< HEAD
-def jack_and_luca_get_best_hint_of_same_size_for_multidefs(batch_size, words_to_multi_embeddings, all_words, board_words, our_words, their_words, size = 2):
-=======
-    
-
-
-    
-    
 
 def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, bert_embeddings=None, bert_weight=0.2, size = 2):
->>>>>>> 68a40484775bb1f65486c65046c1ce1b3649ad87
     '''
     words_to_multi_embeddings maps a word to a numpy vector of size n x m.
     n - the number of difference embeddings for the word
@@ -172,6 +162,7 @@ def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embedd
         their_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
         curr_index += num_definitions
 
+    batch_size = 500    
     all_words = [word for word in all_words if word not in board_words]
 
     for i in range(0, len(all_words), batch_size):
@@ -223,38 +214,7 @@ def initialize_game(all_words):
 
 def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=0.2, type_of_embedding="MULTI-DIM"):
     number_of_games = 500
-<<<<<<< HEAD
-    subset_size_to_evaluate = 3
-    game_words = CODENAMES_WORDS
-    words_to_embeddings = load_context_embeddings(model)
-
-    for word in words_to_embeddings:
-        words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
-
-    for word in game_words:
-        if word not in words_to_embeddings:
-            game_words.remove(word)
-
-    dictionary_words = list(words_to_embeddings.keys())
-
-    for _ in range(number_of_games):
-        start = time.time()
-        board_words, our_words, their_words = initialize_game(game_words)
-        (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(500, words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
-        print(f"Hint: {best_hint_word}")
-        print(f"Our words: {our_words}")
-        print(f"Their words: {their_words}")
-        print(f"Intended Guesses: {best_hint_subset}")
-        print("\n\n")
-        duration = time.time() - start
-        print(f"Duration: {duration}")
-
-def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
-    number_of_games = 500
-    subset_size_to_evaluate = 2
-=======
     subset_size_to_evaluate = subset_size
->>>>>>> 68a40484775bb1f65486c65046c1ce1b3649ad87
     game_words = CODENAMES_WORDS
     if type_of_embedding == "MULTI-DIM":
         words_to_embeddings = load_context_embeddings(model)
@@ -297,7 +257,7 @@ def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
         if type_of_embedding == "MULTI-DIM":
-            (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(500, words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+            (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         elif type_of_embedding == "NO MULTI-DIM":
             (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, bert_embeddings=bert_embeddings, bert_weight=bert_weight, size=subset_size_to_evaluate)
         
@@ -382,11 +342,7 @@ if __name__ == "__main__":
 # Intended Guesses: ['berry', 'bolt']
 # Bot guesses: ['berry', 'bolt']
     
-<<<<<<< HEAD
-    evaluate_spymaster_with_guesser_bot(model, type_of_embedding)
-=======
 # Hint: square
 # Our words: ['cat', 'march', 'center', 'lawyer', 'antarctica', 'string', 'circle', 'bottle']
 # Their words: ['club', 'date', 'root', 'bat', 'conductor', 'olympus', 'amazon', 'nail']
 # Intended Guesses: ['center', 'circle', 'march']
->>>>>>> 68a40484775bb1f65486c65046c1ce1b3649ad87
