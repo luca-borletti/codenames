@@ -1,0 +1,15 @@
+Model name: gpt2
+Average duration: 0.8931539587974548
+GPT Misfires: 95
+Number of games played: 500
+Correct intended guesses: 206
+Correct green guesses: 458
+Number of perfect hints given: 15
+Total Guesses: 810
+Intended guesses percentage: 0.254320987654321
+Green guesses percentage: 0.5654320987654321
+
+
+
+
+

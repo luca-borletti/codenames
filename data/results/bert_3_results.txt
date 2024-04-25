@@ -1,0 +1,15 @@
+Model name: bert
+Average duration: 0.8281677403450012
+GPT Misfires: 95
+Number of games played: 500
+Correct intended guesses: 594
+Correct green guesses: 805
+Number of perfect hints given: 19
+Total Guesses: 1215
+Intended guesses percentage: 0.4888888888888889
+Green guesses percentage: 0.6625514403292181
+
+
+
+
+

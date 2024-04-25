@@ -6,6 +6,8 @@ Correct intended guesses: 503
 Correct green guesses: 670
 Number of perfect hints given: 128
 Total Guesses: 910
+Percentage intended guesses: 0.553
+Percentage green guesses: 0.736
 
 
 

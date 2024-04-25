@@ -1,0 +1,15 @@
+Model name: fasttext
+Average duration: 0.7997584943771362
+GPT Misfires: 79
+Number of games played: 500
+Correct intended guesses: 682
+Correct green guesses: 857
+Number of perfect hints given: 47
+Total Guesses: 1263
+Intended guesses percentage: 0.5399841646872525
+Green guesses percentage: 0.6785431512272367
+
+
+
+
+
