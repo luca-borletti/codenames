@@ -84,7 +84,7 @@ def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words,
                 best_hint = (subset, word)
     return best_hint
     
-def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, size = 2):
+def jack_and_luca_get_best_hint_of_same_size_for_multidefs(batch_size, words_to_multi_embeddings, all_words, board_words, our_words, their_words, size = 2):
     '''
     words_to_multi_embeddings maps a word to a numpy vector of size n x m.
     n - the number of difference embeddings for the word
@@ -111,7 +111,6 @@ def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embedd
         their_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
         curr_index += num_definitions
 
-    batch_size = 500    
     all_words = [word for word in all_words if word not in board_words]
 
     for i in range(0, len(all_words), batch_size):
@@ -174,7 +173,7 @@ def make_games_context_embeddings(model):
     for _ in range(number_of_games):
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
-        (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+        (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(500, words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         print(f"Hint: {best_hint_word}")
         print(f"Our words: {our_words}")
         print(f"Their words: {their_words}")
@@ -220,7 +219,7 @@ def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
         if type_of_embedding == "MULTI-DIM":
-            (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+            (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(500, words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         elif type_of_embedding == "NO MULTI-DIM":
             (best_hint_subset, best_hint_word) = jack_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         
