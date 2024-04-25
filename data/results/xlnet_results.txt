@@ -1,0 +1,13 @@
+Model name: xlnet
+Average duration: 0.846743157863617
+GPT Misfires: 97
+Number of games played: 500
+Correct intended guesses: 282
+Correct green guesses: 496
+Number of perfect hints given: 36
+Total Guesses: 806
+
+
+
+
+

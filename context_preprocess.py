@@ -4,6 +4,9 @@ from nltk.stem import WordNetLemmatizer
 import time
 from transformers import DebertaV2Config, DebertaV2Model, DebertaV2TokenizerFast
 from transformers import BertTokenizer, BertModel
+from transformers import RobertaConfig, RobertaModel, RobertaTokenizer
+from transformers import GPT2Model, GPT2Tokenizer
+from transformers import XLNetModel, XLNetTokenizer
 import numpy as np
 import pprint
 from collections import Counter
@@ -21,7 +24,8 @@ def load_context_embeddings(model_name):
     return embeddings
 
 def remove_non_alphanumeric(s):
-    return ''.join([char for char in s if char.isalnum()])
+    alphabet = set("abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    return ''.join([char for char in s if char in alphabet])
 
 def find_word_in_sentence(word, tokens):
     def full_lemmatize(word):
@@ -31,9 +35,11 @@ def find_word_in_sentence(word, tokens):
             base_words.add(wnl.lemmatize(word, c).lower())
         return base_words
 
+    word = word.lower()
     base_words = full_lemmatize(word)
     
     tokens = [token.lower() for token in tokens]
+    # print(tokens)
     tokens = [full_lemmatize(token) for token in tokens]
 
     return_set = set()
@@ -47,9 +53,8 @@ def embed_singular_word(word, context, model, tokenizer):
 
     token_ids = inputs['input_ids'][0]
     tokens = tokenizer.convert_ids_to_tokens(token_ids)
-    tokens = [remove_non_alphanumeric(item) for item in tokens]
-    clean_tokens = [wnl.lemmatize(remove_non_alphanumeric(item)) for item in tokens]
-    
+    clean_tokens = [remove_non_alphanumeric(item) for item in tokens]
+    print(clean_tokens)
     word_index_set = find_word_in_sentence(word, clean_tokens)
     if len(word_index_set) == 0:
         global bad_count
@@ -66,7 +71,7 @@ def embed_singular_word(word, context, model, tokenizer):
     return average_tensor.detach().numpy().reshape(1, -1)
 
 def embed_all_words_given_model(model_name, model, tokenizer):
-    with open('./data/words/paragraphs.pkl', 'rb') as f:
+    with open('./data/words/paragraphs_cap.pkl', 'rb') as f:
         sentences = pickle.load(f)
     
     embeddings = {}
@@ -79,7 +84,6 @@ def embed_all_words_given_model(model_name, model, tokenizer):
             print(f"No index count: {bad_count}")
             with open(f"./data/contextual_embeddings/{model_name}_word_embeddings.pkl", "wb") as f:
                 pickle.dump(embeddings, f)
-
         sents = sentences[word]
         for i, sent in enumerate(sents):
             embedding = embed_singular_word(word, sent, model, tokenizer)
@@ -89,6 +93,8 @@ def embed_all_words_given_model(model_name, model, tokenizer):
                 embeddings[word] = []
             embeddings[word].append(embedding)
         count += 1
+        if count == 1:
+            print("Embedded one word")
 
     with open(f"./data/contextual_embeddings/{model_name}_word_embeddings.pkl", "wb") as f:
         pickle.dump(embeddings, f)
@@ -101,7 +107,17 @@ def embed(model_name):
     elif model_name == "bert":
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         model = BertModel.from_pretrained("bert-base-uncased")    
-
+    elif model_name == "roberta":
+        configuration = RobertaConfig()
+        model = RobertaModel(configuration)
+        tokenizer = RobertaTokenizer.from_pretrained("FacebookAI/roberta-base")
+    elif model_name == "gpt2":
+        model = GPT2Model.from_pretrained('gpt2')
+        tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    elif model_name == "xlnet":
+        model = XLNetModel.from_pretrained('xlnet-base-cased')
+        tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
+        
     embed_all_words_given_model(model_name, model, tokenizer)
     
 def check_board_words(model_name):
@@ -119,41 +135,37 @@ def check_board_words(model_name):
     print("Embedded words:", len(embeddings_keys))
     print("Intersection:", len(words.intersection(embeddings_keys)))
 
-def find_distance(word1, word2, model_name):
+def find_distance(word1, word2, embeddings):
     '''
     Finds distance between two words
     '''
-    pickle_path = f"data/contextual_embeddings/cleaned_{model_name}_word_embeddings.pkl"
-    with open(pickle_path, "rb") as f:
-        embeddings = pickle.load(f)
     
     best_similarity = 0
-    for i in range(3):
-        for j in range(3):
-            embedding1 = embeddings[word1][i]
-            embedding2 = embeddings[word2][j]
+    for embedding1 in embeddings[word1]:
+        for embedding2 in embeddings[word2]:
+            embedding1 = embeddings[word1]
+            embedding2 = embeddings[word2]
             sim = cosine_similarity(embedding1, embedding2)
             sim = sim[0][0]
             best_similarity = max(sim, best_similarity)
     return best_similarity
 
 def print_paragraphs(word):
-    with open("data/words/paragraphs.pkl", "rb") as f:
+    with open("data/words/paragraphs_cap.pkl", "rb") as f:
         paragraphs = pickle.load(f)
-    print(paragraphs[word])
+    pprint.pprint(paragraphs[word])
 
+def print_counter(model):
+    with open(f"./data/contextual_embeddings/{model}_word_embeddings.pkl", "rb") as f:
+        embeddings = pickle.load(f)
+    
+    print(embeddings["happy"][0].shape)
+    print(embeddings["sad"][0].shape)
+    lst = [len(embeddings[key]) for key in embeddings]
+    print(Counter(lst))
 
 
 if __name__ == "__main__":
-    model_names = ["deberta", "bert"]
-    model_name = "bert"
+    model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
+    model_name = "roberta"
     embed(model_name)
-
-
-# Hint: square
-# Our words: ['cat', 'march', 'center', 'lawyer', 'antarctica', 'string', 'circle', 'bottle']
-# Their words: ['club', 'date', 'root', 'bat', 'conductor', 'olympus', 'amazon', 'nail']
-# Intended Guesses: ['center', 'circle', 'march']
-    
-# Paragraphs for square:
-# ['i saw a group of friends laughing and chatting in the town square, surrounded by colorful buildings and street vendors selling their goods. the square was bustling with activity as people milled about, enjoying the sunny day and lively atmosphere.', 'the answer to the math problem required me to find the square of the number 5, which turned out to be 25. after calculating the square of a few more numbers, i began to grasp the relationship between a number and its square.', 'the teacher instructed us to draw a square on the graph paper, making sure all four sides were of equal length and all four angles were right angles. as i carefully plotted each point and connected the lines, a perfect square took shape on the page.']

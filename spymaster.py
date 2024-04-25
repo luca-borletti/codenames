@@ -55,7 +55,7 @@ def similarity(x, y):
     return cosine_similarity2(x, y)
 
 def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words, our_words, their_words, size = 2):
-    best_hint = None
+    best_hint = ""
     best_sim = 0
 
     our_words_set = set(our_words)
@@ -83,14 +83,71 @@ def jack_get_best_hint_of_same_size(words_to_embeddings, all_words, board_words,
                 best_sim = our_worst_sim
                 best_hint = (subset, word)
     return best_hint
+
+
+def get_context_embedding(bert_embeddings, batch_words, our_words, their_words):
+    _, bert_size_embedding = bert_embeddings[next(iter(bert_embeddings))].shape
+
+    our_words_embeddings = [bert_embeddings[word] for word in our_words]
+    our_words_embeddings = np.vstack(our_words_embeddings)
+    our_word_index_to_embedding_indices = []
+    curr_index = 0
+    for i, word in enumerate(our_words):
+        num_definitions = bert_embeddings[word].shape[0]
+        our_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
+        curr_index += num_definitions
+
+    their_words_embeddings = [bert_embeddings[word] for word in their_words]
+    their_words_embeddings = np.vstack(their_words_embeddings)
+    their_word_index_to_embedding_indices = []
+    curr_index = 0
+    for i, word in enumerate(their_words):
+        num_definitions = bert_embeddings[word].shape[0]
+        their_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
+        curr_index += num_definitions
+
+    for word in batch_words:
+        if word not in bert_embeddings:
+            bert_embeddings[word] = np.zeros((1, bert_size_embedding))
+
+    batch_embeddings = [bert_embeddings[word] for word in batch_words]
+    batch_embeddings = np.vstack(batch_embeddings)
+    batch_word_index_to_embedding_indices = []
+    curr_index = 0
+    for j, word in enumerate(batch_words):
+        num_definitions = bert_embeddings[word].shape[0]
+        batch_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
+        curr_index += num_definitions
+
+    our_similarities = cosine_similarity(our_words_embeddings, batch_embeddings)
+    their_similarities = cosine_similarity(their_words_embeddings, batch_embeddings)
+
+    max_similarities_per_our_word = np.array([np.max(our_similarities[indices], axis=0) for indices in our_word_index_to_embedding_indices])
+    max_similarities_per_their_word = np.array([np.max(their_similarities[indices], axis=0) for indices in their_word_index_to_embedding_indices])
+
+    max_our_similarities_per_batch_word = np.array([np.max(max_similarities_per_our_word[:, indices], axis=1) for indices in batch_word_index_to_embedding_indices])
+    max_our_similarities_per_batch_word = np.transpose(max_our_similarities_per_batch_word)
+
+    max_their_similarities_per_batch_word = np.array([np.max(max_similarities_per_their_word[:, indices], axis=1) for indices in batch_word_index_to_embedding_indices])
+    max_their_similarities_per_batch_word = np.transpose(max_their_similarities_per_batch_word)
+
+    return max_our_similarities_per_batch_word, max_their_similarities_per_batch_word
     
-def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, size = 2):
+    
+
+
+    
+    
+
+def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, bert_embeddings=None, bert_weight=0.2, size = 2):
     '''
     words_to_multi_embeddings maps a word to a numpy vector of size n x m.
     n - the number of difference embeddings for the word
     m - dimension of embeddings
+
+    Same with bert_embeddings
     '''
-    best_hint = None
+    best_hint = ""
     best_sim = 0
 
     our_words_embeddings = [words_to_multi_embeddings[word] for word in our_words]
@@ -120,23 +177,28 @@ def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embedd
         batch_embeddings = np.vstack(batch_embeddings)
         batch_word_index_to_embedding_indices = []
         curr_index = 0
-        for i, word in enumerate(batch_words):
+        for j, word in enumerate(batch_words):
             num_definitions = words_to_multi_embeddings[word].shape[0]
             batch_word_index_to_embedding_indices.append(list(range(curr_index, curr_index + num_definitions)))
             curr_index += num_definitions
-        
+
         our_similarities = cosine_similarity(our_words_embeddings, batch_embeddings)
         their_similarities = cosine_similarity(their_words_embeddings, batch_embeddings)
-        
+
         max_similarities_per_our_word = np.array([np.max(our_similarities[indices], axis=0) for indices in our_word_index_to_embedding_indices])
         max_similarities_per_their_word = np.array([np.max(their_similarities[indices], axis=0) for indices in their_word_index_to_embedding_indices])
-        
+
         max_our_similarities_per_batch_word = np.array([np.max(max_similarities_per_our_word[:, indices], axis=1) for indices in batch_word_index_to_embedding_indices])
         max_our_similarities_per_batch_word = np.transpose(max_our_similarities_per_batch_word)
-        
+        # print("max_our_similarities_per_batch_word.shape", max_our_similarities_per_batch_word.shape)
         max_their_similarities_per_batch_word = np.array([np.max(max_similarities_per_their_word[:, indices], axis=1) for indices in batch_word_index_to_embedding_indices])
         max_their_similarities_per_batch_word = np.transpose(max_their_similarities_per_batch_word)
         
+        if bert_embeddings:
+            our_similarities_bert, their_similarities_bert = get_context_embedding(bert_embeddings, batch_words, our_words, their_words)
+            max_their_similarities_per_batch_word += bert_weight * our_similarities_bert
+            max_their_similarities_per_batch_word += bert_weight * their_similarities_bert
+
         our_best_sims_indices = np.argpartition(max_our_similarities_per_batch_word, -1 * size, axis=0)[-1 * size:]
         our_worst_sims_indices = our_best_sims_indices[0, :]
         our_worst_sims = max_our_similarities_per_batch_word[our_worst_sims_indices, range(max_our_similarities_per_batch_word.shape[1])]
@@ -156,36 +218,9 @@ def initialize_game(all_words):
     their_words = [word for word in board_words if word not in our_words]
     return list(board_words), list(our_words), list(their_words)
 
-def make_games_context_embeddings(model):
+def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=0.2, type_of_embedding="MULTI-DIM"):
     number_of_games = 500
-    subset_size_to_evaluate = 3
-    game_words = CODENAMES_WORDS
-    words_to_embeddings = load_context_embeddings(model)
-
-    for word in words_to_embeddings:
-        words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
-
-    for word in game_words:
-        if word not in words_to_embeddings:
-            game_words.remove(word)
-
-    dictionary_words = list(words_to_embeddings.keys())
-
-    for _ in range(number_of_games):
-        start = time.time()
-        board_words, our_words, their_words = initialize_game(game_words)
-        (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
-        print(f"Hint: {best_hint_word}")
-        print(f"Our words: {our_words}")
-        print(f"Their words: {their_words}")
-        print(f"Intended Guesses: {best_hint_subset}")
-        print("\n\n")
-        duration = time.time() - start
-        print(f"Duration: {duration}")
-
-def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
-    number_of_games = 500
-    subset_size_to_evaluate = 2
+    subset_size_to_evaluate = subset_size
     game_words = CODENAMES_WORDS
     if type_of_embedding == "MULTI-DIM":
         words_to_embeddings = load_context_embeddings(model)
@@ -193,13 +228,21 @@ def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
             words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
     elif type_of_embedding == "NO MULTI-DIM":
         words_to_embeddings = load_embeddings(model)
-
-    for word in game_words:
-        if word not in words_to_embeddings:
-            game_words.remove(word)
+        for word in words_to_embeddings:
+            words_to_embeddings[word] = np.array(words_to_embeddings[word]).reshape(1, -1)
+        
+        if use_bert_embeddings:
+            bert_embeddings = load_context_embeddings("bert")
+            for word in bert_embeddings:
+                bert_embeddings[word] = np.vstack(bert_embeddings[word])
+        else:
+            bert_embeddings = None
 
     dictionary_words = list(words_to_embeddings.keys())
-    
+    game_words = list((set(game_words)).intersection(set(dictionary_words)))
+
+    if use_bert_embeddings:
+        game_words = list((set(game_words)).intersection(set(bert_embeddings.keys())))
     
     """ 
     Each game, we will initialize the game, get the best hints for each subset, and GPTGuesser guess the words.
@@ -222,9 +265,10 @@ def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
         if type_of_embedding == "MULTI-DIM":
             (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         elif type_of_embedding == "NO MULTI-DIM":
-            (best_hint_subset, best_hint_word) = jack_get_best_hint_of_same_size(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
+            (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, bert_embeddings=bert_embeddings, bert_weight=bert_weight, size=subset_size_to_evaluate)
         
         guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
+        print(f"Board number: {num_games}")
         print(f"Hint: {best_hint_word}")
         print(f"Our words: {our_words}")
         print(f"Their words: {their_words}")
@@ -245,8 +289,9 @@ def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
         total_guesses += subset_size_to_evaluate
         if intended_guesses_this_round == subset_size_to_evaluate:
             perfect_hints += 1
+
     old_stdout = sys.stdout
-    with open(f"./data/results/{model}_results.txt", "a") as f:
+    with open(f"./data/results/{model}_{subset_size}_useBert:{use_bert_embeddings}{bert_weight}_results.txt", "w") as f:
         sys.stdout = f
         print(f"Model name:", model)
         print(f"Average duration: {total_duration / num_games}")
@@ -256,21 +301,54 @@ def evaluate_spymaster_with_guesser_bot(model, type_of_embedding="MULTI-DIM"):
         print(f"Correct green guesses: {correct_guesses}")
         print(f"Number of perfect hints given: {perfect_hints}")
         print(f"Total Guesses: {total_guesses}")
+        print(f"Intended guesses percentage: {intended_guesses / total_guesses}")
+        print(f"Green guesses percentage: {correct_guesses / total_guesses}")
         print("\n\n\n\n")
     sys.stdout = old_stdout
+
+def find_multi_distance(word1, word2, embeddings):
+    '''
+    Finds distance between two words with a multidimensional embedding
+    '''
+    best_similarity = 0
+    for embedding1 in embeddings[word1]:
+        for embedding2 in embeddings[word2]:
+            embedding1 = embeddings[word1]
+            embedding2 = embeddings[word2]
+            sim = cosine_similarity(embedding1, embedding2)
+            sim = sim[0][0]
+            best_similarity = max(sim, best_similarity)
+    return best_similarity
     
 def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
     return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
-        
+
 if __name__ == "__main__":
     type_of_embeddings = ["MULTI-DIM", "NO MULTI-DIM"]
 
     type_of_embedding = "NO MULTI-DIM"
     models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
     model = "fasttext"
+    use_bert_embeddings=True
+    bert_weight=0.1
    
-    type_of_embedding = "MULTI-DIM"
-    models = ["bert", "deberta"]
-    model = "bert"
+    # type_of_embedding = "MULTI-DIM"
+    # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
+    # model = "bert"
+
+    subset_size = 2
+    evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
+
+
+
+# Board number: 97
+# Hint: nut
+# Our words: ['bond', 'code', 'bolt', 'tail', 'antarctica', 'berry', 'thief', 'helicopter']
+# Their words: ['alien', 'table', 'cross', 'princess', 'boot', 'board', 'center', 'van']
+# Intended Guesses: ['berry', 'bolt']
+# Bot guesses: ['berry', 'bolt']
     
-    evaluate_spymaster_with_guesser_bot(model, type_of_embedding)
+# Hint: square
+# Our words: ['cat', 'march', 'center', 'lawyer', 'antarctica', 'string', 'circle', 'bottle']
+# Their words: ['club', 'date', 'root', 'bat', 'conductor', 'olympus', 'amazon', 'nail']
+# Intended Guesses: ['center', 'circle', 'march']

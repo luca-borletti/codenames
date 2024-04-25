@@ -102,8 +102,8 @@ def guess_from_hint(board_words, hint, x):
     # prompt = f"Given the words {', '.join(board_words)} on the Codenames board and the hint '{hint}', " \
     #          f"list {x} words from the board that are most likely to be related to the hint:\n"
 
-    # response_text = gpt_3turbo_guess_from_hint(prompt)
-    response_text = gpt_4_turbo_guess_from_hint(prompt)
+    response_text = gpt_3turbo_guess_from_hint(prompt)
+    # response_text = gpt_4_turbo_guess_from_hint(prompt)
     # response_text = gpt_3_guess_from_hint(prompt)
     # response_text = gpt_4_guess_from_hint(prompt)
     filtered_guesses = [word for word in board_words if word in response_text][:x]
