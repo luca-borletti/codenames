@@ -180,91 +180,17 @@ def embed_definitions(words):
     
     return word_to_def_embeddings
 
-def words_without_defs():
-    from preprocess import process_all_words
-    all_words = process_all_words()
-    words_without_defs = []
-    # load pickle file if it exists
-    embeddings_pickle_file = "./data/definition_embeddings/openai_word_defembeddings.pkl"
-    with open(embeddings_pickle_file, "rb") as f:
-        word_to_def_embeddings = pickle.load(f)
-    
-    new_pickle_file = "./data/words/dictionaryapi_word_defs.pkl"
-    with open(new_pickle_file, "rb") as f:
+def load_definitions():
+    defs_pickle_file_path = "./data/words/dictionaryapi_word_defs.pkl"
+    with open(defs_pickle_file_path, "rb") as f:
         word_to_def = pickle.load(f)
-    
-    
-    for word in all_words:
-        if word not in word_to_def:
-            words_without_defs.append(word)
-            
-    print(f"Words without definitions: {len(words_without_defs)}")
-            
-    
-            
-    # # for word in words_without_defs:
-    # #     del word_to_def[word]
-    # #     del word_to_def_embeddings[word]
-        
-    # # with open(new_pickle_file, "wb") as f:
-    # #     pickle.dump(word_to_def, f)
-    # # with open(embeddings_pickle_file, "wb") as f:
-    # #     pickle.dump(word_to_def_embeddings, f)
-        
-    
-    # words_truly_without_defs = []
-    
-    # # print(f"Words without definitions: {len(words_without_defs)}")
-    
-    
-    # batch_size = 20
-    
-    # for i in range(0, len(words_without_defs), batch_size):
-    #     batch = words_without_defs[i:i+batch_size]
-    #     for word in batch:
-    #         definitions = get_definitions_merriam(word)
-    #         if definitions:
-    #             word_to_def[word] = definitions
-    #             embeddings = []
-    #             final_definitions = []
-    #             for definition in definitions:
-    #                 try:
-    #                     response = client.embeddings.create(model="text-embedding-3-small", input=[definition])
-    #                     response = response.data[0].embedding
-    #                     embeddings.append(np.array(response))
-    #                     final_definitions.append(definition)
-    #                 except:
-    #                     print(f"Failed to embed definition for {word}")
-    #                     continue
-    #             embeddings = np.array(embeddings)
-    #             word_to_def_embeddings[word] = embeddings
-    #             print(f"Added definitions for {word}")
-    #         else:
-    #             print(f"Failed to get definitions for {word}")
-    #             words_truly_without_defs.append(word)
-    #         time.sleep(0.25)
-    #     print(f"Finished embedding 20 more words")
-    #     with open(new_pickle_file, "wb") as f:
-    #         pickle.dump(word_to_def, f)
-    #     with open(embeddings_pickle_file, "wb") as f:
-    #         pickle.dump(word_to_def_embeddings, f)
-        
-    
-    # print(f"Words truly without definitions: {len(words_truly_without_defs)}")
-    
+    return word_to_def
+
+def load_definition_embeddings():
+    embeddings_pickle_file_path = "./data/definition_embeddings/openai_word_defembeddings.pkl"
+    with open(embeddings_pickle_file_path, "rb") as f:
+        word_to_def_embeddings = pickle.load(f)
+    return word_to_def_embeddings
 
 if __name__ == '__main__':
-    words_without_defs()
-    # print(get_definitions_merriam("researching"))
-    # words_without_defs()
-    # pickle_file = "./data/definition_embeddings/openai_word_defembeddings.pkl"
-    # pickle_file = "./data/definition_embeddings/openai_word_defs_plus_defembeddings.pkl"
-    # # load pickle file if it exists
-    # with open(pickle_file, "rb") as f:
-    #     word_to_def_embeddings = pickle.load(f)
-    #     word_to_def = {word: data["definitions"] for word, data in word_to_def_embeddings.items()}
-    #     # create a new pickle file with only the definitions
-    #     new_pickle_file = "./data/words/dictionaryapi_word_defs.pkl"
-    #     with open(new_pickle_file, "wb") as f:
-    #         pickle.dump(word_to_def, f)
-    # pprint.pprint(get_definitions_merriam("break"))
+    pass
