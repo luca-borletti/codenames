@@ -186,8 +186,8 @@ def load_definitions():
         word_to_def = pickle.load(f)
     return word_to_def
 
-def load_definition_embeddings():
-    embeddings_pickle_file_path = "./data/definition_embeddings/openai_word_defembeddings.pkl"
+def load_definition_embeddings(model):
+    embeddings_pickle_file_path = f"./data/definition_embeddings/{model}_word_defembeddings.pkl"
     with open(embeddings_pickle_file_path, "rb") as f:
         word_to_def_embeddings = pickle.load(f)
     return word_to_def_embeddings

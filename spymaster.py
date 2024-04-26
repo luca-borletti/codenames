@@ -34,6 +34,7 @@ import sys
 import tqdm
 import pickle
 from context_preprocess import load_context_embeddings
+from definitions_preprocess import load_definition_embeddings
 
 CODENAMES_WORDS_FILE_PATH = "./data/words/codenames_words.txt"
 
@@ -212,11 +213,13 @@ def initialize_game(all_words):
     their_words = [word for word in board_words if word not in our_words]
     return list(board_words), list(our_words), list(their_words)
 
-def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=0.2, type_of_embedding="MULTI-DIM"):
+def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=0.2, type_of_embedding="MULTI-DIM-CONTEXT"):
     number_of_games = 500
     subset_size_to_evaluate = subset_size
     game_words = CODENAMES_WORDS
-    if type_of_embedding == "MULTI-DIM":
+    if type_of_embedding == "MULTI-DIM-DEFINITION":
+        words_to_embeddings = load_definition_embeddings(model)
+    elif type_of_embedding == "MULTI-DIM-CONTEXT":
         words_to_embeddings = load_context_embeddings(model)
         for word in words_to_embeddings:
             words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
@@ -256,7 +259,7 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
         num_games += 1
         start = time.time()
         board_words, our_words, their_words = initialize_game(game_words)
-        if type_of_embedding == "MULTI-DIM":
+        if type_of_embedding == "MULTI-DIM-CONTEXT" or type_of_embedding == "MULTI-DIM-DEFINITION":
             (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, size=subset_size_to_evaluate)
         elif type_of_embedding == "NO MULTI-DIM":
             (best_hint_subset, best_hint_word) = jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_embeddings, dictionary_words, board_words, our_words, their_words, bert_embeddings=bert_embeddings, bert_weight=bert_weight, size=subset_size_to_evaluate)
@@ -318,7 +321,7 @@ def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
     return similarity(WORDS_TO_EMBEDDINGS[word1], WORDS_TO_EMBEDDINGS[word2])
 
 if __name__ == "__main__":
-    type_of_embeddings = ["MULTI-DIM", "NO MULTI-DIM"]
+    type_of_embeddings = ["MULTI-DIM-DEFINITION", "MULTI-DIM-CONTEXT", "NO MULTI-DIM"]
 
     type_of_embedding = "NO MULTI-DIM"
     models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
@@ -327,12 +330,16 @@ if __name__ == "__main__":
     bert_weight=0.1
     
    
-    type_of_embedding = "MULTI-DIM"
+    type_of_embedding = "MULTI-DIM-CONTEXT"
     model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
     model = "bert"
+    
+    type_of_embedding = "MULTI-DIM-DEFINITION"
+    model_names = ["openai"]
+    model = "openai"
 
-    # subset_size = 2
-    # evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
+    subset_size = 2
+    evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=False, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
 
 
 
@@ -347,3 +354,56 @@ if __name__ == "__main__":
 # Our words: ['cat', 'march', 'center', 'lawyer', 'antarctica', 'string', 'circle', 'bottle']
 # Their words: ['club', 'date', 'root', 'bat', 'conductor', 'olympus', 'amazon', 'nail']
 # Intended Guesses: ['center', 'circle', 'march']
+
+
+
+
+
+
+# Duration: 1.1441588401794434
+# Board number: 5
+# Hint: punch
+# Our words: ['box', 'port', 'casino', 'hole', 'round', 'moscow', 'soul', 'laser']
+# Their words: ['hand', 'space', 'sock', 'chocolate', 'well', 'horn', 'pistol', 'seal']
+# Intended Guesses: ['hole', 'box']
+# Bot guesses: ['box']
+
+# Duration: 1.1742370128631592
+# Board number: 37
+# Hint: wood
+# Our words: ['fire', 'forest', 'iron', 'bridge', 'spine', 'egypt', 'plot', 'trunk']
+# Their words: ['lemon', 'carrot', 'honey', 'snowman', 'mug', 'pyramid', 'scorpion', 'fly']
+# Intended Guesses: ['spine', 'forest']
+# Bot guesses: ['forest', 'trunk']
+
+# Duration: 1.246595859527588
+# Board number: 30
+# Hint: marching
+# Our words: ['death', 'root', 'bow', 'press', 'cliff', 'soldier', 'water', 'march']
+# Their words: ['hand', 'thief', 'box', 'theater', 'time', 'ray', 'crash', 'fighter']
+# Intended Guesses: ['soldier', 'march']
+# Bot guesses: ['soldier', 'march']
+
+# Duration: 1.3635430335998535
+# Board number: 67
+# Hint: wizard
+# Our words: ['compound', 'vet', 'contract', 'hood', 'princess', 'nut', 'straw', 'star']
+# Their words: ['box', 'torch', 'lion', 'soldier', 'undertaker', 'ruler', 'missile', 'needle']
+# Intended Guesses: ['star', 'princess']
+# Bot guesses: ['princess', 'star']
+
+# Duration: 0.8866713047027588
+# Board number: 166
+# Hint: boob
+# Our words: ['trip', 'buffalo', 'cell', 'amazon', 'stadium', 'switch', 'shot', 'mouth']
+# Their words: ['slip', 'doctor', 'arm', 'rose', 'bed', 'fighter', 'capital', 'net']
+# Intended Guesses: ['trip', 'cell']
+# Bot guesses: ['rose', 'bed']
+
+# Duration: 1.8424909114837646
+# Board number: 207
+# Hint: card
+# Our words: ['tick', 'sound', 'deck', 'plane', 'washington', 'ketchup', 'switch', 'snowman']
+# Their words: ['mercury', 'casino', 'block', 'pan', 'yard', 'check', 'bermuda', 'soldier']
+# Intended Guesses: ['snowman', 'deck']
+# Bot guesses: ['casino', 'deck']
