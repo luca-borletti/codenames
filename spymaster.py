@@ -218,7 +218,7 @@ def initialize_game(all_words):
     their_words = [word for word in board_words if word not in our_words]
     return list(board_words), list(our_words), list(their_words)
 
-def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=0.2, type_of_embedding="MULTI-DIM"):
+def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=None, bert_weight=0.2, type_of_embedding="MULTI-DIM"):
     number_of_games = 500
     subset_size_to_evaluate = subset_size
     game_words = CODENAMES_WORDS
@@ -231,8 +231,8 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
         for word in words_to_embeddings:
             words_to_embeddings[word] = np.array(words_to_embeddings[word]).reshape(1, -1)
         
-        if use_bert_embeddings:
-            bert_embeddings = load_context_embeddings("bert")
+        if use_bert_embeddings != None:
+            bert_embeddings = load_context_embeddings(use_bert_embeddings)
             for word in bert_embeddings:
                 bert_embeddings[word] = np.vstack(bert_embeddings[word])
         else:
@@ -241,7 +241,7 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
     dictionary_words = list(words_to_embeddings.keys())
     game_words = list((set(game_words)).intersection(set(dictionary_words)))
 
-    if use_bert_embeddings:
+    if use_bert_embeddings != None:
         game_words = list((set(game_words)).intersection(set(bert_embeddings.keys())))
     
     """ 
@@ -291,9 +291,15 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
             perfect_hints += 1
 
     old_stdout = sys.stdout
-    with open(f"./data/results/{model}_{subset_size}_useBert:{use_bert_embeddings}{bert_weight}_results.txt", "w") as f:
+    if use_bert_embeddings != None:
+        path = f"./data/results/{model}_{subset_size}_useBert:{use_bert_embeddings}{bert_weight}_results.txt"
+    else:
+        path = f"./data/results/{model}_{subset_size}_results.txt"
+    with open(path, "w") as f:
         sys.stdout = f
         print(f"Model name:", model)
+        print(f"Using helper model: {use_bert_embeddings}")
+        print(f"Subset size: {subset_size}")
         print(f"Average duration: {total_duration / num_games}")
         print(f"GPT Misfires: {false_GPT_resp}")
         print(f"Number of games played: {number_of_games}")
@@ -325,19 +331,23 @@ def check_cosine_similarity(word1, word2, WORDS_TO_EMBEDDINGS):
 
 if __name__ == "__main__":
     type_of_embeddings = ["MULTI-DIM", "NO MULTI-DIM"]
+    use_bert_embeddings=None
+    bert_weight=0
+    
 
     type_of_embedding = "NO MULTI-DIM"
     models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
     model = "fasttext"
-    use_bert_embeddings=True
+    use_bert_embeddings="bert"
     bert_weight=0.1
    
     # type_of_embedding = "MULTI-DIM"
-    # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
-    # model = "bert"
+    # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet", "albert", "distilbert", "electra"]
+    # model = "electra"
+    # use_bert_embeddings=None
 
-    subset_size = 2
-    evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
+    subset_size = 3
+    evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=use_bert_embeddings, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
 
 
 
@@ -352,3 +362,11 @@ if __name__ == "__main__":
 # Our words: ['cat', 'march', 'center', 'lawyer', 'antarctica', 'string', 'circle', 'bottle']
 # Their words: ['club', 'date', 'root', 'bat', 'conductor', 'olympus', 'amazon', 'nail']
 # Intended Guesses: ['center', 'circle', 'march']
+    
+
+# Board number: 50
+# Hint: debit
+# Our words: ['net', 'charge', 'bank', 'web', 'tail', 'doctor', 'gas', 'pilot']
+# Their words: ['kangaroo', 'fire', 'limousine', 'key', 'day', 'beach', 'yard', 'crane']
+# Intended Guesses: ['charge', 'net', 'bank']
+# Bot guesses: ['charge', 'net', 'bank']

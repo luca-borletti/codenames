@@ -7,6 +7,9 @@ from transformers import BertTokenizer, BertModel
 from transformers import RobertaConfig, RobertaModel, RobertaTokenizer
 from transformers import GPT2Model, GPT2Tokenizer
 from transformers import XLNetModel, XLNetTokenizer
+from transformers import AlbertTokenizer, AlbertModel
+from transformers import DistilBertTokenizer, DistilBertModel
+from transformers import ElectraConfig, ElectraModel, ElectraTokenizer
 import numpy as np
 import pprint
 from collections import Counter
@@ -53,8 +56,8 @@ def embed_singular_word(word, context, model, tokenizer):
 
     token_ids = inputs['input_ids'][0]
     tokens = tokenizer.convert_ids_to_tokens(token_ids)
+    # print(tokens)
     clean_tokens = [remove_non_alphanumeric(item) for item in tokens]
-    print(clean_tokens)
     word_index_set = find_word_in_sentence(word, clean_tokens)
     if len(word_index_set) == 0:
         global bad_count
@@ -117,6 +120,16 @@ def embed(model_name):
     elif model_name == "xlnet":
         model = XLNetModel.from_pretrained('xlnet-base-cased')
         tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
+    elif model_name == "albert":
+        tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
+        model = AlbertModel.from_pretrained('albert-base-v2')
+    elif model_name == "distilbert":
+        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+        model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+    elif model_name == "electra":
+        configuration = ElectraConfig()
+        model = ElectraModel(configuration)
+        tokenizer = ElectraTokenizer.from_pretrained('google/electra-small-discriminator')
         
     embed_all_words_given_model(model_name, model, tokenizer)
     
@@ -166,6 +179,6 @@ def print_counter(model):
 
 
 if __name__ == "__main__":
-    model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
-    model_name = "roberta"
+    model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet", "albert", "distilbert", "electra"]
+    model_name = "electra"
     embed(model_name)
