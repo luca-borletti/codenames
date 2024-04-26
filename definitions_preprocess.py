@@ -43,8 +43,8 @@ def get_definitions_merriam(word):
         # filter out defs without 'word' or 'word:' in the ['meta']['id'] field
         major_definitions_groups = []
         for d in data:
-            if 'meta' in d and 'id' in d['meta'] and (word == ((d['meta']['id']).strip().lower()) or f'{word}:' in ((d['meta']['id']).strip().lower())):
-                major_definitions_groups.append(d['shortdef'])
+            # if 'meta' in d and 'id' in d['meta'] and (word == ((d['meta']['id']).strip().lower()) or f'{word}:' in ((d['meta']['id']).strip().lower())):
+            major_definitions_groups.append(d['shortdef'])
         major_definitions_groups = major_definitions_groups[:MAX_MAJOR_DEFS]
         
         count = 0
@@ -181,6 +181,8 @@ def embed_definitions(words):
     return word_to_def_embeddings
 
 def words_without_defs():
+    from preprocess import process_all_words
+    all_words = process_all_words()
     words_without_defs = []
     # load pickle file if it exists
     embeddings_pickle_file = "./data/definition_embeddings/openai_word_defembeddings.pkl"
@@ -192,25 +194,27 @@ def words_without_defs():
         word_to_def = pickle.load(f)
     
     
-    for word in word_to_def:
-        if not word_to_def[word]:
+    for word in all_words:
+        if word not in word_to_def:
             words_without_defs.append(word)
             
     print(f"Words without definitions: {len(words_without_defs)}")
             
-    # for word in words_without_defs:
-    #     del word_to_def[word]
-    #     del word_to_def_embeddings[word]
+    
+            
+    # # for word in words_without_defs:
+    # #     del word_to_def[word]
+    # #     del word_to_def_embeddings[word]
         
-    # with open(new_pickle_file, "wb") as f:
-    #     pickle.dump(word_to_def, f)
-    # with open(embeddings_pickle_file, "wb") as f:
-    #     pickle.dump(word_to_def_embeddings, f)
+    # # with open(new_pickle_file, "wb") as f:
+    # #     pickle.dump(word_to_def, f)
+    # # with open(embeddings_pickle_file, "wb") as f:
+    # #     pickle.dump(word_to_def_embeddings, f)
         
     
     # words_truly_without_defs = []
     
-    # print(f"Words without definitions: {len(words_without_defs)}")
+    # # print(f"Words without definitions: {len(words_without_defs)}")
     
     
     # batch_size = 20
@@ -250,8 +254,8 @@ def words_without_defs():
     
 
 if __name__ == '__main__':
-    # print(get_definitions_merriam("researching"))
     words_without_defs()
+    # print(get_definitions_merriam("researching"))
     # words_without_defs()
     # pickle_file = "./data/definition_embeddings/openai_word_defembeddings.pkl"
     # pickle_file = "./data/definition_embeddings/openai_word_defs_plus_defembeddings.pkl"
