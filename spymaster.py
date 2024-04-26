@@ -325,13 +325,14 @@ if __name__ == "__main__":
     model = "fasttext"
     use_bert_embeddings=True
     bert_weight=0.1
+    
    
-    # type_of_embedding = "MULTI-DIM"
-    # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
-    # model = "bert"
+    type_of_embedding = "MULTI-DIM"
+    model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
+    model = "bert"
 
-    subset_size = 2
-    evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
+    # subset_size = 2
+    # evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
 
 
 
