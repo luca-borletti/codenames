@@ -1,0 +1,15 @@
+Model name: distilbert
+Average duration: 0.6706054592132569
+GPT Misfires: 65
+Number of games played: 500
+Correct intended guesses: 539
+Correct green guesses: 646
+Number of perfect hints given: 158
+Total Guesses: 870
+Intended guesses percentage: 0.6195402298850575
+Green guesses percentage: 0.7425287356321839
+
+
+
+
+

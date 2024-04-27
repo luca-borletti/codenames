@@ -1,0 +1,17 @@
+Model name: fasttext
+Using helper model: distilbert
+Subset size: 3
+Average duration: 1.1549239130020141
+GPT Misfires: 117
+Number of games played: 500
+Correct intended guesses: 586
+Correct green guesses: 790
+Number of perfect hints given: 35
+Total Guesses: 1149
+Intended guesses percentage: 0.5100087032201914
+Green guesses percentage: 0.6875543951261966
+
+
+
+
+

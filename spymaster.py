@@ -411,9 +411,8 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
         for word in words_to_embeddings:
             words_to_embeddings[word] = np.array(words_to_embeddings[word]).reshape(1, -1)
         
-        if use_bert_embeddings:
-            # bert_embeddings = load_context_embeddings("bert")
-            bert_embeddings = load_definition_embeddings("openai")
+        if use_bert_embeddings != None:
+            bert_embeddings = load_context_embeddings(use_bert_embeddings)
             for word in bert_embeddings:
                 bert_embeddings[word] = np.vstack(bert_embeddings[word])
         else:
@@ -422,7 +421,7 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
     dictionary_words = list(words_to_embeddings.keys())
     game_words = list((set(game_words)).intersection(set(dictionary_words)))
 
-    if use_bert_embeddings:
+    if use_bert_embeddings != None:
         game_words = list((set(game_words)).intersection(set(bert_embeddings.keys())))
     
     """ 
@@ -472,9 +471,15 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
             perfect_hints += 1
 
     old_stdout = sys.stdout
-    with open(f"./data/results/{model}_{subset_size}_useOpenaiDefs:{use_bert_embeddings}{bert_weight}_results.txt", "w") as f:
+    if use_bert_embeddings != None:
+        path = f"./data/results/{model}_{subset_size}_useBert:{use_bert_embeddings}{bert_weight}_results.txt"
+    else:
+        path = f"./data/results/{model}_{subset_size}_results.txt"
+    with open(path, "w") as f:
         sys.stdout = f
         print(f"Model name:", model)
+        print(f"Using helper model: {use_bert_embeddings}")
+        print(f"Subset size: {subset_size}")
         print(f"Average duration: {total_duration / num_games}")
         print(f"GPT Misfires: {false_GPT_resp}")
         print(f"Number of games played: {number_of_games}")
@@ -691,24 +696,19 @@ if __name__ == "__main__":
     """ Testing regular spymaster with guesser bot """
     # type_of_embeddings = ["MULTI-DIM-DEFINITION", "MULTI-DIM-CONTEXT", "NO MULTI-DIM"]
 
-    # type_of_embedding = "NO MULTI-DIM"
-    # models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
-    # model = "fasttext"
-    # use_bert_embeddings=True
-    # bert_weight=0.1
-    
+    type_of_embedding = "NO MULTI-DIM"
+    models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
+    model = "fasttext"
+    use_bert_embeddings="roberta"
+    bert_weight=0.05
    
-    # # type_of_embedding = "MULTI-DIM-CONTEXT"
-    # # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet"]
-    # # model = "bert"
-    
-    # # type_of_embedding = "MULTI-DIM-DEFINITION"
-    # # model_names = ["openai"]
-    # # model = "openai"
+    # type_of_embedding = "MULTI-DIM"
+    # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet", "albert", "distilbert", "electra"]
+    # model = "deberta"
+    # use_bert_embeddings=None
 
-    # subset_size = 2
-    # evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=False, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
-
+    subset_size = 2
+    evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=use_bert_embeddings, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
 
 
 
@@ -825,3 +825,11 @@ if __name__ == "__main__":
 # Our words: ['hollywood', 'green', 'unicorn', 'film', 'whip', 'deck', 'embassy', 'model']
 # Their words: ['millionaire', 'knife', 'vacuum', 'lead', 'net', 'head', 'chocolate', 'octopus']
 # Bot guesses: ['film', 'hollywood', 'model']
+    
+
+# Board number: 50
+# Hint: debit
+# Our words: ['net', 'charge', 'bank', 'web', 'tail', 'doctor', 'gas', 'pilot']
+# Their words: ['kangaroo', 'fire', 'limousine', 'key', 'day', 'beach', 'yard', 'crane']
+# Intended Guesses: ['charge', 'net', 'bank']
+# Bot guesses: ['charge', 'net', 'bank']

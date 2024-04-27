@@ -1,0 +1,17 @@
+Model name: roberta
+Using helper model: None
+Subset size: 2
+Average duration: 0.7861111922264099
+GPT Misfires: 93
+Number of games played: 500
+Correct intended guesses: 372
+Correct green guesses: 552
+Number of perfect hints given: 78
+Total Guesses: 814
+Intended guesses percentage: 0.457002457002457
+Green guesses percentage: 0.6781326781326781
+
+
+
+
+
