@@ -13,6 +13,12 @@ import pprint
 import dotenv
 import os
 import gensim.downloader
+import nltk
+from nltk.stem import WordNetLemmatizer
+nltk.data.path.append('./nltk_data')
+
+wnl = WordNetLemmatizer()
+
 dotenv.load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -97,5 +103,17 @@ def process_all_words():
         words[i] = words[i].strip().lower()
     return words
 
+def lemmatize_words():
+    words = process_all_words()
+    lemmatized_words = []
+    for word in words:
+        lemmatized_words.append(wnl.lemmatize(word))
+    different_words = []
+    for i, word in enumerate(words):
+        if word != lemmatized_words[i]:
+            different_words.append((word, lemmatized_words[i]))
+    return different_words
+
 if __name__ == '__main__':
+    pprint.pprint(lemmatize_words())
     pass

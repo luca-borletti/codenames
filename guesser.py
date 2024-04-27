@@ -61,17 +61,30 @@ def gpt_4_guess_from_hint(prompt):
     response_text = response.choices[0].message.content.lower()
     return response_text
 
-def claude_3_guess_from_hint(prompt):
-    response = anthropic_client.completions.create(
-        model="claude-3-opus-20240229",
-        max_tokens_to_sample=1024,
-        prompt=prompt,
+def claude_3_opus_guess_from_hint(prompt):
+    message = anthropic_client.messages.create(
+    model="claude-3-opus-20240229",
+    max_tokens=1024,
+    messages=[
+            {"role": "user", "content": prompt}
+        ]
     )
-    # print(response)
-    response_text = response.completion
-    return response_text
+    return message.content[0].text
+
+def claude_3_sonnet_guess_from_hint(prompt):
+    prompt += " Be succinct:"
+    message = anthropic_client.messages.create(
+    model="claude-3-sonnet-20240229",
+    max_tokens=50,
+    messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+    # print(message.content[0].text)
+    return message.content[0].text.lower()
 
 def gpt_3turbo_guess_from_hint(prompt):
+    prompt += " Be succinct:"
     response = openai_client.chat.completions.create(
         model="gpt-3.5-turbo-0125",
         messages=[
@@ -80,7 +93,7 @@ def gpt_3turbo_guess_from_hint(prompt):
         max_tokens=100,
     )
     response_text = response.choices[0].message.content.lower()
-    # print(response_text)
+    print(response_text)
     return response_text
 
 def gpt_3_guess_from_hint(prompt):
@@ -103,6 +116,8 @@ def guess_from_hint(board_words, hint, x):
     #          f"list {x} words from the board that are most likely to be related to the hint:\n"
 
     response_text = gpt_3turbo_guess_from_hint(prompt)
+    # response_text = claude_3_opus_guess_from_hint(prompt)
+    # response_text = claude_3_sonnet_guess_from_hint(prompt)
     # response_text = gpt_4_turbo_guess_from_hint(prompt)
     # response_text = gpt_3_guess_from_hint(prompt)
     # response_text = gpt_4_guess_from_hint(prompt)
@@ -230,9 +245,10 @@ def evaluate_guesser_bot():
     return results
 
 if __name__ == "__main__":
-    # board_words = ["apple", "car", "chair", "banana", "orange", "person", "dog", "cat", "table", "computer"]
-    # hint = "fruit"
+    pass
+    # board_words = ['hollywood', 'green', 'unicorn', 'film', 'whip', 'deck', 'embassy', 'model', 'millionaire', 'knife', 'vacuum', 'lead', 'net', 'head', 'chocolate', 'octopus']
+    # hint = "star"
     # x = 3
     # print(guess_from_hint(board_words, hint, x))
     
-    print(evaluate_guesser_bot())
+    # print(evaluate_guesser_bot())
