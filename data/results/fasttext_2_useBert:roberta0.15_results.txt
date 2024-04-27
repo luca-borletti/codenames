@@ -1,0 +1,17 @@
+Model name: fasttext
+Using helper model: roberta
+Subset size: 2
+Average duration: 0.8891314492225647
+GPT Misfires: 111
+Number of games played: 500
+Correct intended guesses: 464
+Correct green guesses: 576
+Number of perfect hints given: 132
+Total Guesses: 778
+Intended guesses percentage: 0.596401028277635
+Green guesses percentage: 0.7403598971722365
+
+
+
+
+

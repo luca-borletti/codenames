@@ -338,15 +338,15 @@ if __name__ == "__main__":
     type_of_embedding = "NO MULTI-DIM"
     models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
     model = "fasttext"
-    use_bert_embeddings="bert"
-    bert_weight=0.1
+    use_bert_embeddings="roberta"
+    bert_weight=0.05
    
     # type_of_embedding = "MULTI-DIM"
     # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet", "albert", "distilbert", "electra"]
-    # model = "electra"
+    # model = "deberta"
     # use_bert_embeddings=None
 
-    subset_size = 3
+    subset_size = 2
     evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=use_bert_embeddings, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
 
 

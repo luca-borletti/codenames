@@ -1,0 +1,17 @@
+Model name: deberta
+Using helper model: None
+Subset size: 2
+Average duration: 0.7971003394126892
+GPT Misfires: 88
+Number of games played: 500
+Correct intended guesses: 282
+Correct green guesses: 514
+Number of perfect hints given: 23
+Total Guesses: 824
+Intended guesses percentage: 0.3422330097087379
+Green guesses percentage: 0.6237864077669902
+
+
+
+
+
