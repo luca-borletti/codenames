@@ -1,0 +1,1 @@
+""" Create a GUI for the human guessing from spymaster hints. """

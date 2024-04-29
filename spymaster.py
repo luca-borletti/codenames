@@ -136,7 +136,7 @@ def get_context_embedding(bert_embeddings, batch_words, our_words, their_words):
 
     return max_our_similarities_per_batch_word, max_their_similarities_per_batch_word
 
-def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, bert_embeddings=None, bert_weight=0.2, size = 2):
+def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embeddings, all_words, board_words, our_words, their_words, bert_embeddings=None, bert_weight=0.2, size = 2, similarity_buffer = 0):
     '''
     words_to_multi_embeddings maps a word to a numpy vector of size n x m.
     n - the number of difference embeddings for the word
@@ -208,7 +208,7 @@ def jack_and_luca_get_best_hint_of_same_size_for_multidefs(words_to_multi_embedd
         their_best_sims = np.max(max_their_similarities_per_batch_word, axis=0)
         
         for j in range(len(batch_words)):
-            if their_best_sims[j] < our_worst_sims[j]:
+            if their_best_sims[j] + similarity_buffer < our_worst_sims[j]:
                 if our_worst_sims[j] > best_sim:
                     best_sim = our_worst_sims[j]
                     best_hint = ([our_words[i] for i in our_best_sims_indices[:, j]], batch_words[j])
@@ -222,8 +222,8 @@ def initialize_game(all_words):
 
 
 
-def weighted_spymaster_get_hint(models_to_words_to_embeddings, models_to_weights, dictionary_words, board_words, our_words, their_words, subset_size_to_evaluate):
-    best_hint = ""
+def weighted_spymaster_get_hint(models_to_words_to_embeddings, models_to_weights, dictionary_words, board_words, our_words, their_words, subset_size_to_evaluate, min_similarity_distance_from_their_best = 0.1):
+    best_hint = None
     best_sim = 0
 
     models_to_matrices = {model : {} for model in models_to_weights}
@@ -305,10 +305,14 @@ def weighted_spymaster_get_hint(models_to_words_to_embeddings, models_to_weights
         their_best_sims = np.max(max_their_similarities_per_batch_word, axis=0)
         
         for j in range(len(batch_words)):
-            if their_best_sims[j] < our_worst_sims[j]:
+            if their_best_sims[j] + min_similarity_distance_from_their_best < our_worst_sims[j]:
                 if our_worst_sims[j] > best_sim:
                     best_sim = our_worst_sims[j]
                     best_hint = ([our_words[i] for i in our_best_sims_indices[:, j]], batch_words[j])
+                    
+    if best_hint is None:
+        return ([], "")
+    
     return best_hint
 
 def evaluate_generalized_weighted_spymaster_with_guesser_bot(models_and_types_to_weights, subset_size_to_evaluate):
@@ -341,6 +345,9 @@ def evaluate_generalized_weighted_spymaster_with_guesser_bot(models_and_types_to
     # print(f"Game words: {len(game_words)}")
     
     number_of_games = 500
+    min_similarity_distance_from_their_best=0.05
+    
+    game_batch_size = 100
     
     total_duration = 0
     false_GPT_resp = 0
@@ -348,55 +355,61 @@ def evaluate_generalized_weighted_spymaster_with_guesser_bot(models_and_types_to
     total_guesses = 0
     correct_guesses = 0
     perfect_hints = 0
+    couldnt_find_hint = 0
 
-    for i in range(number_of_games):
-        start = time.time()
-        board_words, our_words, their_words = initialize_game(game_words)
-        (best_hint_subset, best_hint_word) = weighted_spymaster_get_hint(models_to_words_to_embeddings, models_to_weights, dictionary_words, board_words, our_words, their_words, subset_size_to_evaluate)
-        
-        guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
-        print(f"Board number: {i}")
-        print(f"Hint: {best_hint_word}")
-        print(f"Intended Guesses: {best_hint_subset}")
-        print(f"Our words: {our_words}")
-        print(f"Their words: {their_words}")
-        print(f"Bot guesses: {guessed_words}")
-        print("\n\n")
-        duration = time.time() - start
-        print(f"Duration: {duration}")
-        total_duration += duration
-        
-        if len(guessed_words) != subset_size_to_evaluate:
-            false_GPT_resp += 1
-            continue
-        
-        intended_guesses_this_round = len(set(best_hint_subset).intersection(set(guessed_words)))
-        intended_guesses += intended_guesses_this_round
-        correct_guesses += len(set(guessed_words).intersection(set(our_words)))
-        total_guesses += subset_size_to_evaluate
-        if intended_guesses_this_round == subset_size_to_evaluate:
-            perfect_hints += 1
+    for batch in range(0, number_of_games, game_batch_size):
+        for i in range(batch, batch + game_batch_size):
+            start = time.time()
+            board_words, our_words, their_words = initialize_game(game_words)
+            (best_hint_subset, best_hint_word) = weighted_spymaster_get_hint(models_to_words_to_embeddings, models_to_weights, dictionary_words, board_words, our_words, their_words, subset_size_to_evaluate, min_similarity_distance_from_their_best)
+            if best_hint_word == "":
+                couldnt_find_hint += 1
+                continue
+            
+            guessed_words = guess_from_hint(board_words, best_hint_word, subset_size_to_evaluate)
+            print(f"Board number: {i}")
+            print(f"Hint: {best_hint_word}")
+            print(f"Intended Guesses: {best_hint_subset}")
+            print(f"Our words: {our_words}")
+            print(f"Their words: {their_words}")
+            print(f"Bot guesses: {guessed_words}")
+            print("\n\n")
+            duration = time.time() - start
+            print(f"Duration: {duration}")
+            total_duration += duration
+            
+            if len(guessed_words) != subset_size_to_evaluate:
+                false_GPT_resp += 1
+                continue
+            
+            intended_guesses_this_round = len(set(best_hint_subset).intersection(set(guessed_words)))
+            intended_guesses += intended_guesses_this_round
+            correct_guesses += len(set(guessed_words).intersection(set(our_words)))
+            total_guesses += subset_size_to_evaluate
+            if intended_guesses_this_round == subset_size_to_evaluate:
+                perfect_hints += 1
 
-    old_stdout = sys.stdout
-    models_and_weights_string = "_".join([f"{model}_{weights}" for (model, _), weights in models_and_types_to_weights.items()])
-    run_name = f"./data/results/{models_and_weights_string}_subset_{subset_size_to_evaluate}_results.txt"
-    with open(run_name, "w") as f:
-        sys.stdout = f
-        print(f"Model name:", model)
-        print(f"Average duration: {total_duration / number_of_games}")
-        print(f"GPT Misfires: {false_GPT_resp}")
-        print(f"Number of games played: {number_of_games}")
-        print(f"Correct intended guesses: {intended_guesses}")
-        print(f"Correct green guesses: {correct_guesses}")
-        print(f"Number of perfect hints given: {perfect_hints}")
-        print(f"Total Guesses: {total_guesses}")
-        print(f"Intended guesses percentage: {intended_guesses / total_guesses}")
-        print(f"Green guesses percentage: {correct_guesses / total_guesses}")
-        print("\n\n\n\n")
-    sys.stdout = old_stdout
+        old_stdout = sys.stdout
+        models_and_weights_string = "_".join([f"{model}_{weights}" for (model, _), weights in models_and_types_to_weights.items()])
+        run_name = f"./data/results/{min_similarity_distance_from_their_best}_buffer_{models_and_weights_string}_subset_{subset_size_to_evaluate}_results.txt"
+        with open(run_name, "w") as f:
+            sys.stdout = f
+            print(f"Model name:", model)
+            print(f"Average duration: {total_duration / number_of_games}")
+            print(f"GPT Misfires: {false_GPT_resp}")
+            print(f"Coudn't find hint: {couldnt_find_hint}")
+            print(f"Number of games played: {number_of_games}")
+            print(f"Correct intended guesses: {intended_guesses}")
+            print(f"Correct green guesses: {correct_guesses}")
+            print(f"Number of perfect hints given: {perfect_hints}")
+            print(f"Total Guesses: {total_guesses}")
+            print(f"Intended guesses percentage: {intended_guesses / total_guesses}")
+            print(f"Green guesses percentage: {correct_guesses / total_guesses}")
+            print("\n\n\n\n")
+        sys.stdout = old_stdout
 
 
-def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=True, bert_weight=0.2, type_of_embedding="MULTI-DIM-CONTEXT"):
+def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings, bert_weight, type_of_embedding):
     number_of_games = 500
     subset_size_to_evaluate = subset_size
     game_words = CODENAMES_WORDS
@@ -407,9 +420,12 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
         for word in words_to_embeddings:
             words_to_embeddings[word] = np.vstack(words_to_embeddings[word])
     elif type_of_embedding == "NO MULTI-DIM":
-        words_to_embeddings = load_embeddings(model)
+        words_to_embeddings = load_context_embeddings("bert")
         for word in words_to_embeddings:
-            words_to_embeddings[word] = np.array(words_to_embeddings[word]).reshape(1, -1)
+            words_to_embeddings[word] = np.mean(words_to_embeddings[word], axis=0).reshape(1, -1)
+        # words_to_embeddings = load_embeddings(model)
+        # for word in words_to_embeddings:
+        #     words_to_embeddings[word] = np.array(words_to_embeddings[word]).reshape(1, -1)
         
         if use_bert_embeddings != None:
             bert_embeddings = load_context_embeddings(use_bert_embeddings)
@@ -474,7 +490,7 @@ def evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=
     if use_bert_embeddings != None:
         path = f"./data/results/{model}_{subset_size}_useBert:{use_bert_embeddings}{bert_weight}_results.txt"
     else:
-        path = f"./data/results/{model}_{subset_size}_results.txt"
+        path = f"./data/results/bert_average_2_results.txt"
     with open(path, "w") as f:
         sys.stdout = f
         print(f"Model name:", model)
@@ -540,19 +556,22 @@ def test_game_on_all_models():
         print("\n\n")
 
 def experts_framework():
-    models_to_weights = OrderedDict({
-        ("bert", "MULTI-DIM-CONTEXT") : [18], 
-        ("openai", "MULTI-DIM-DEFINITION") : [23], 
-        ("word2vec300", "NO MULTI-DIM") : [22], 
-        ("glove300", "NO MULTI-DIM") : [18], 
-        ("fasttext", "NO MULTI-DIM") : [19]
-    })
+    pickle_file = "./data/results/experts_framework_v3_weights.pkl"
+    with open(pickle_file, "rb") as f:
+        models_to_weights = pickle.load(f)
+    # models_to_weights = OrderedDict({
+    #     ("bert", "MULTI-DIM-CONTEXT") : [1], 
+    #     ("openai", "MULTI-DIM-DEFINITION") : [1], 
+    #     ("word2vec300", "NO MULTI-DIM") : [1], 
+    #     ("glove300", "NO MULTI-DIM") : [1], 
+    #     ("fasttext", "NO MULTI-DIM") : [1]
+    # })
     
     models = list(models_to_weights.keys())
     
-    subset_sizes = [2, 3]
+    subset_sizes = [2]
     
-    number_of_games = 500
+    number_of_games = 400
     
     total_load_time = 0
     total_time = 0
@@ -643,11 +662,11 @@ def experts_framework():
             
 
         old_stdout = sys.stdout
-        with open(f"./data/results/experts_framework_2_results.txt", "w") as f:
+        with open(f"./data/results/experts_framework_v3cont_results.txt", "w") as f:
             sys.stdout = f
             # print weights
             for model, weight in models_to_weights.items():
-                print(f"Model: {model}, Weight: {weight}")
+                print(f"Model: {model}, Weight: {weight[-1]}")
             print("\n\n")
             print(f"Average load time: {total_load_time / number_of_games}")
             print(f"Average duration: {total_time / number_of_games}")
@@ -663,53 +682,161 @@ def experts_framework():
             print("\n\n\n\n")
         sys.stdout = old_stdout
         
-        weights_pickle_file = "./data/results/experts_framework_2_weights.pkl"
+        weights_pickle_file = "./data/results/experts_framework_v3cont_weights.pkl"
         with open(weights_pickle_file, "wb") as f:
             pickle.dump(models_to_weights, f)
 
 if __name__ == "__main__":
     """ Trying out the generalized similarity weighting """
     models_and_types_to_weights = OrderedDict({
-        ("bert", "MULTI-DIM-CONTEXT") : .1,
-        ("openai", "MULTI-DIM-DEFINITION") : .1,
-        # ("word2vec300", "NO MULTI-DIM") : 1,
-        # ("glove300", "NO MULTI-DIM") : 1,
-        ("fasttext", "NO MULTI-DIM") : 1
+        ("bert", "MULTI-DIM-CONTEXT") : 0.2017665693350847,
+        ("openai", "MULTI-DIM-DEFINITION") : 0.18039145488320762,
+        ("word2vec300", "NO MULTI-DIM") : 0.19185842245007803,
+        ("glove300", "NO MULTI-DIM") : 0.19375684208308044,
+        ("fasttext", "NO MULTI-DIM") : 0.232226711248549169
+    #     ("bert", "MULTI-DIM-CONTEXT") : .18,
+    #     ("openai", "MULTI-DIM-DEFINITION") : .23,
+    #     ("word2vec300", "NO MULTI-DIM") : .22,
+    #     ("glove300", "NO MULTI-DIM") : .18,
+    #     ("fasttext", "NO MULTI-DIM") : .19
+    #     # ("bert", "MULTI-DIM-CONTEXT") : .1,
+    #     # ("openai", "MULTI-DIM-DEFINITION") : .1,
+    #     # ("word2vec300", "NO MULTI-DIM") : .22,
+    #     # ("glove300", "NO MULTI-DIM") : .18,
+    #     # ("fasttext", "NO MULTI-DIM") : 1
     })
     evaluate_generalized_weighted_spymaster_with_guesser_bot(models_and_types_to_weights, 2)
     
-    
     """ Trying out the experts framework """
-    # # # experts_framework()
-    # # # print weights
-    # # weights_pickle_file = "./data/results/experts_framework_2_weights.pkl"
-    # # with open(weights_pickle_file, "rb") as f:
-    # #     models_to_weights = pickle.load(f)
+    # experts_framework()
+    # # print weights
+    # weights_pickle_file = "./data/results/experts_framework_2_weights.pkl"
+    # with open(weights_pickle_file, "rb") as f:
+    #     models_to_weights = pickle.load(f)
     
-    # # model_to_single_weight = { model : weights[-1] for model, weights in models_to_weights.items() }
-    # # normalization = sum(model_to_single_weight.values())
-    # # model_to_single_weight = { model : weight / normalization for model, weight in model_to_single_weight.items() }
+    # model_to_single_weight = { model : weights[-1] for model, weights in models_to_weights.items() }
+    # normalization = sum(model_to_single_weight.values())
+    # model_to_single_weight = { model : weight / normalization for model, weight in model_to_single_weight.items() }
     
-    # # for model, weight in model_to_single_weight.items():
-    # #     print(f"Model: {model}, Weight: {weight:.2f}")
+    # for model, weight in model_to_single_weight.items():
+    #     print(f"Model: {model}, Weight: {weight:.2f}")
 
     """ Testing regular spymaster with guesser bot """
     # type_of_embeddings = ["MULTI-DIM-DEFINITION", "MULTI-DIM-CONTEXT", "NO MULTI-DIM"]
 
-    type_of_embedding = "NO MULTI-DIM"
-    models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
-    model = "fasttext"
-    use_bert_embeddings="roberta"
-    bert_weight=0.05
-   
-    # type_of_embedding = "MULTI-DIM"
-    # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet", "albert", "distilbert", "electra"]
-    # model = "deberta"
+    # type_of_embedding = "NO MULTI-DIM"
+    # models = ["openai", "word2vec300", "glove300", "word2vec+glove300", "glove100", "glovetwitter200", "fasttext"]
+    # model = "fasttext"
     # use_bert_embeddings=None
+    # bert_weight=0.05
+   
+    # # type_of_embedding = "MULTI-DIM"
+    # # model_names = ["deberta", "bert", "roberta", "gpt2", "xlnet", "albert", "distilbert", "electra"]
+    # # model = "deberta"
+    # # use_bert_embeddings=None
 
-    subset_size = 2
-    evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=use_bert_embeddings, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
-
+    # subset_size = 2
+    # evaluate_spymaster_with_guesser_bot(model, subset_size, use_bert_embeddings=use_bert_embeddings, bert_weight=bert_weight, type_of_embedding=type_of_embedding)
+    
+    """ Visualize experts framework weights over time """
+    # import matplotlib.pyplot as plt
+    # pickle_file = "./data/results/experts_framework_v3cont_weights.pkl"
+    # with open(pickle_file, "rb") as f:
+    #     models_and_types_to_weights_over_time = pickle.load(f)
+    #     models_to_weights_over_time = { model : weights for (model, _), weights in models_and_types_to_weights_over_time.items() }
+        
+    # print(models_to_weights_over_time) # of form { model : [list of weights] }
+    
+    # # normalize weights over time
+    # all_weights = np.array([weights for weights in models_to_weights_over_time.values()])
+    # all_weights = all_weights
+    # all_weights = all_weights / np.sum(all_weights, axis=0)
+    # num_games = all_weights.shape[1]
+    
+    # models_to_normalized_weights = { model : weights for model, weights in zip(models_to_weights_over_time.keys(), all_weights) }
+        
+    
+    # # plot the weights over time
+    # for model, weights in models_to_normalized_weights.items():
+    #     plt.plot(weights, label=model)
+        
+    # final_weights = { model : weights[-1] for model, weights in models_to_normalized_weights.items() }
+    # print(final_weights)
+    # plt.xlabel("Game number")
+    # plt.ylabel("Relative Weight")
+    # plt.title("\"Experts Framework\" Model Weights Over Time")
+    # # mark the final weight
+    # for model, weight in final_weights.items():
+    #     # add text box 
+    #     plt.text(num_games - 1, weight, f"  {weight:.3f}", fontsize=9, ha='left')
+    # # increase horizontal margin
+    # plt.xlim(0, num_games * 1.1 + 1)  # Adjust the x-axis limits
+    # plt.legend()
+    # plt.show()
+    
+    """ Getting all hints for game board """
+    # our_words = ["dragon", "tokyo", "paper", "beijing", "boom", "knife", "buck", "car"] 
+    # their_words = ["steel", "penguin", "australia", "shark", "opera", "heart", "slip", "plate"]
+    # for model, type_of_embedding in [("openai", "MULTI-DIM-DEFINITION"), ("word2vec300", "NO MULTI-DIM"), ("glove300", "NO MULTI-DIM"), ("word2vec+glove300", "NO MULTI-DIM"), ("glove100", "NO MULTI-DIM"), ("glovetwitter200", "NO MULTI-DIM"), ("fasttext", "NO MULTI-DIM")]:
+    #     print(f"Model: {model}")
+    #     print(f"Type of embedding: {type_of_embedding}")
+    #     best_hint_subset, best_hint_word = play_one_game_on_single_model(model, 2, type_of_embedding, our_words, their_words)
+    #     print(f"Hint: {best_hint_word}")
+    #     print(f"Intended Guesses: {best_hint_subset}")
+    #     print("\n\n")
+    
+    """ playing with embedding models 
+    compare 'die' to 'dice' and both to 'game' and 'death'
+    """
+    # fasttext_word_to_embedding = load_embeddings("fasttext")
+    # for word in fasttext_word_to_embedding:
+    #     fasttext_word_to_embedding[word] = np.array(fasttext_word_to_embedding[word]).reshape(1, -1)
+    # print("FASTTEXT")
+    # print(f"DIE vs DICE: {cosine_similarity(fasttext_word_to_embedding['die'], fasttext_word_to_embedding['dice'])}")
+    # print(f"DIE vs GAME: {cosine_similarity(fasttext_word_to_embedding['die'], fasttext_word_to_embedding['game'])}")
+    # print(f"DIE vs DEATH: {cosine_similarity(fasttext_word_to_embedding['die'], fasttext_word_to_embedding['death'])}")
+    # print(f"DICE vs GAME: {cosine_similarity(fasttext_word_to_embedding['dice'], fasttext_word_to_embedding['game'])}")
+    # print(f"DICE vs DEATH: {cosine_similarity(fasttext_word_to_embedding['dice'], fasttext_word_to_embedding['death'])}")
+    
+    # glove_plus_word2vec_word_to_embedding = load_embeddings("word2vec+glove300")
+    # for word in glove_plus_word2vec_word_to_embedding:
+    #     glove_plus_word2vec_word_to_embedding[word] = np.array(glove_plus_word2vec_word_to_embedding[word]).reshape(1, -1)
+    # print("\nGLOVE + WORD2VEC")
+    # print(f"DIE vs DICE: {cosine_similarity(glove_plus_word2vec_word_to_embedding['die'], glove_plus_word2vec_word_to_embedding['dice'])}")
+    # print(f"DIE vs GAME: {cosine_similarity(glove_plus_word2vec_word_to_embedding['die'], glove_plus_word2vec_word_to_embedding['game'])}")
+    # print(f"DIE vs DEATH: {cosine_similarity(glove_plus_word2vec_word_to_embedding['die'], glove_plus_word2vec_word_to_embedding['death'])}")
+    # print(f"DICE vs GAME: {cosine_similarity(glove_plus_word2vec_word_to_embedding['dice'], glove_plus_word2vec_word_to_embedding['game'])}")
+    # print(f"DICE vs DEATH: {cosine_similarity(glove_plus_word2vec_word_to_embedding['dice'], glove_plus_word2vec_word_to_embedding['death'])}")
+    
+    # openai_word_to_embedding = load_definition_embeddings("openai")
+    # print("\nOPENAI")
+    # print(f"DIE vs DICE: {find_multi_distance('die', 'dice', openai_word_to_embedding)}")
+    # print(f"DIE vs GAME: {find_multi_distance('die', 'game', openai_word_to_embedding)}")
+    # print(f"DIE vs DEATH: {find_multi_distance('die', 'death', openai_word_to_embedding)}")
+    # print(f"DICE vs GAME: {find_multi_distance('dice', 'game', openai_word_to_embedding)}")
+    # print(f"DICE vs DEATH: {find_multi_distance('dice', 'death', openai_word_to_embedding)}")
+    
+    # bert_word_to_embedding = load_context_embeddings("bert")
+    # for word in bert_word_to_embedding:
+    #     bert_word_to_embedding[word] = np.vstack(bert_word_to_embedding[word])
+    # print("\nBERT")
+    # print(f"DIE vs DICE: {find_multi_distance('die', 'dice', bert_word_to_embedding)}")
+    # print(f"DIE vs GAME: {find_multi_distance('die', 'game', bert_word_to_embedding)}")
+    # print(f"DIE vs DEATH: {find_multi_distance('die', 'death', bert_word_to_embedding)}")
+    # print(f"DICE vs GAME: {find_multi_distance('dice', 'game', bert_word_to_embedding)}")
+    # print(f"DICE vs DEATH: {find_multi_distance('dice', 'death', bert_word_to_embedding)}")
+    
+    # bert_word_to_embedding = load_context_embeddings("bert")
+    # for word in bert_word_to_embedding:
+    #     bert_word_to_embedding[word] = np.mean(bert_word_to_embedding[word], axis=0).reshape(1, -1)
+    # print("\nBERT")
+    # print(f"DIE vs DICE: {cosine_similarity(bert_word_to_embedding['die'], bert_word_to_embedding['dice'])}")
+    # print(f"DIE vs GAME: {cosine_similarity(bert_word_to_embedding['die'], bert_word_to_embedding['game'])}")
+    # print(f"DIE vs DEATH: {cosine_similarity(bert_word_to_embedding['die'], bert_word_to_embedding['death'])}")
+    # print(f"DICE vs GAME: {cosine_similarity(bert_word_to_embedding['dice'], bert_word_to_embedding['game'])}")
+    # print(f"DICE vs DEATH: {cosine_similarity(bert_word_to_embedding['dice'], bert_word_to_embedding['death'])}")
+    
+    
 
 
 # Board number: 97
@@ -833,3 +960,27 @@ if __name__ == "__main__":
 # Their words: ['kangaroo', 'fire', 'limousine', 'key', 'day', 'beach', 'yard', 'crane']
 # Intended Guesses: ['charge', 'net', 'bank']
 # Bot guesses: ['charge', 'net', 'bank']
+
+# Duration: 0.6150321960449219
+# himalayas, duck
+# Board number: 15
+# Hint: natural
+# Intended Guesses: ['gas', 'sound']
+# Our words: ['fighter', 'lab', 'capital', 'undertaker', 'card', 'sound', 'duck', 'gas']
+# Their words: ['back', 'crane', 'staff', 'himalayas', 'tick', 'watch', 'limousine', 'spine']
+# Bot guesses: ['himalayas', 'duck']
+
+
+
+
+
+# Mixture of experts
+
+# Duration: 1.249535083770752
+# limousine, fan
+# Board number: 182
+# Hint: glass
+# Intended Guesses: ['china', 'pipe']
+# Our words: ['date', 'queen', 'fair', 'bomb', 'china', 'figure', 'slug', 'pipe']
+# Their words: ['fan', 'limousine', 'cold', 'swing', 'washington', 'spider', 'turkey', 'india']
+# Bot guesses: ['fan', 'limousine']

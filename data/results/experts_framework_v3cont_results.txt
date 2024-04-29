@@ -1,0 +1,24 @@
+Model: ('bert', 'MULTI-DIM-CONTEXT'), Weight: 0.2787575114960481
+Model: ('openai', 'MULTI-DIM-DEFINITION'), Weight: 0.24922599033184123
+Model: ('word2vec300', 'NO MULTI-DIM'), Weight: 0.26506857195416184
+Model: ('glove300', 'NO MULTI-DIM'), Weight: 0.26769139859196883
+Model: ('fasttext', 'NO MULTI-DIM'), Weight: 0.3208407633826001
+
+
+
+Average load time: 0.06882209539413452
+Average duration: 0.5981807219982147
+GPT Misfires: 46
+Number of games played: 400
+Correct intended guesses: 401
+Correct green guesses: 532
+Number of perfect hints given: 112
+Total Guesses: 708
+Intended guesses percentage: 0.5663841807909604
+Green guesses percentage: 0.751412429378531
+Average mistakes: 0.44
+
+
+
+
+
